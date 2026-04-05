@@ -1,0 +1,15 @@
+{
+  "name": "Home Assistant Copilot Add-on",
+  "image": "ghcr.io/home-assistant/devcontainer:latest",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "GitHub.copilot",
+        "GitHub.copilot-chat",
+        "ms-vscode-remote.remote-containers"
+      ]
+    }
+  },
+  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+  "postCreateCommand": "cd copilot_brain/app && npm install"
+}

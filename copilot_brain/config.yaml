@@ -1,0 +1,65 @@
+name: Copilot Brain
+version: "0.2.0"
+slug: copilot_brain
+description: >-
+  Experimental GitHub-powered AI control plane for Home Assistant with chat, HA terminal, and MCP endpoint.
+url: https://github.com/ussdeveloper/ha-github-copilot
+documentation: https://github.com/ussdeveloper/ha-github-copilot/blob/main/copilot_brain/DOCS.md
+arch:
+  - amd64
+  - aarch64
+startup: application
+boot: auto
+stage: experimental
+init: false
+ingress: true
+ingress_port: 8099
+panel_title: Copilot Brain
+panel_icon: mdi:robot-excited
+homeassistant_api: true
+hassio_api: true
+map:
+  - type: addon_config
+    read_only: false
+options:
+  github_app_id: ""
+  github_app_installation_id: ""
+  github_app_private_key: ""
+  github_model: openai/gpt-4.1
+  mcp_auth_token: "change-me"
+  approval_mode: explicit
+  system_prompt_template: >-
+    You are the Home Assistant Copilot Brain. You are passive by default.
+    Only perform changes when explicitly requested.
+    Available entities: {{entities_summary}}
+    Available addons: {{addons_summary}}
+  entity_allowlist: []
+  service_allowlist:
+    - light.turn_on
+    - light.turn_off
+    - light.toggle
+    - switch.turn_on
+    - switch.turn_off
+    - switch.toggle
+    - script.turn_on
+    - scene.turn_on
+  addon_allowlist: []
+schema:
+  github_app_id: str?
+  github_app_installation_id: str?
+  github_app_private_key: password?
+  github_model: str
+  mcp_auth_token: password
+  approval_mode: list(explicit|read-only)
+  system_prompt_template: str
+  entity_allowlist:
+    - str
+  service_allowlist:
+    - str
+  addon_allowlist:
+    - str
+ports:
+  8099/tcp: 8099
+ports_description:
+  8099/tcp: Copilot Brain HTTP API and MCP endpoint
+watchdog: http://[HOST]:[PORT:8099]/api/health

@@ -1,0 +1,33 @@
+configuration:
+  github_app_id:
+    name: GitHub App ID
+    description: Numeric identifier of your GitHub App
+  github_app_installation_id:
+    name: GitHub App Installation ID
+    description: Installation ID used for GitHub Models requests
+  github_app_private_key:
+    name: GitHub App Private Key
+    description: Base64-encoded PEM private key of your GitHub App
+  github_model:
+    name: GitHub model
+    description: Model identifier used for chat completions
+  mcp_auth_token:
+    name: MCP auth token
+    description: Bearer token required by the MCP endpoint
+  approval_mode:
+    name: Approval mode
+    description: Whether writes require explicit approval or the add-on stays read-only
+  system_prompt_template:
+    name: System prompt template
+    description: Main system prompt template with placeholders like {{entities_summary}}
+  entity_allowlist:
+    name: Entity allowlist
+    description: Entities that may be operated on by the assistant
+  service_allowlist:
+    name: Service allowlist
+    description: Services that may be called by the assistant
+  addon_allowlist:
+    name: Add-on allowlist
+    description: Add-ons that may be inspected or orchestrated by the assistant
+network:
+  8099/TCP: Copilot Brain UI and MCP API

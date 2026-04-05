@@ -1,0 +1,19 @@
+{
+  "servers": {
+    "ha-copilot-brain": {
+      "type": "http",
+      "url": "http://homeassistant.local:8099/mcp",
+      "headers": {
+        "Authorization": "Bearer ${input:haCopilotMcpToken}"
+      }
+    }
+  },
+  "inputs": [
+    {
+      "type": "promptString",
+      "id": "haCopilotMcpToken",
+      "description": "Bearer token for the Home Assistant Copilot Brain MCP endpoint",
+      "password": true
+    }
+  ]
+}

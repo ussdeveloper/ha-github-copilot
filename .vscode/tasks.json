@@ -1,0 +1,42 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Install app dependencies",
+      "type": "shell",
+      "command": "npm",
+      "args": ["install"],
+      "options": {
+        "cwd": "${workspaceFolder}/copilot_brain/app"
+      }
+    },
+    {
+      "label": "Build app",
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "build"],
+      "options": {
+        "cwd": "${workspaceFolder}/copilot_brain/app"
+      },
+      "dependsOn": "Install app dependencies"
+    },
+    {
+      "label": "Run app locally",
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "dev"],
+      "options": {
+        "cwd": "${workspaceFolder}/copilot_brain/app"
+      },
+      "isBackground": true,
+      "dependsOn": "Install app dependencies"
+    },
+    {
+      "label": "Start Home Assistant",
+      "type": "shell",
+      "command": "bash",
+      "args": ["-lc", "echo 'Use the official Home Assistant devcontainer bootstrap here.'"],
+      "problemMatcher": []
+    }
+  ]
+}

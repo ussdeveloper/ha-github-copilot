@@ -1,0 +1,33 @@
+configuration:
+  github_app_id:
+    name: ID aplikacji GitHub
+    description: Numeryczny identyfikator GitHub App
+  github_app_installation_id:
+    name: ID instalacji GitHub App
+    description: Identyfikator instalacji używany do żądań GitHub Models
+  github_app_private_key:
+    name: Klucz prywatny GitHub App
+    description: Klucz PEM aplikacji zakodowany jako base64
+  github_model:
+    name: Model GitHub
+    description: Identyfikator modelu używany do czatu
+  mcp_auth_token:
+    name: Token MCP
+    description: Token Bearer wymagany przez endpoint MCP
+  approval_mode:
+    name: Tryb zatwierdzania
+    description: Czy zapis wymaga jawnego zatwierdzenia czy dodatek ma działać tylko do odczytu
+  system_prompt_template:
+    name: Szablon promptu systemowego
+    description: Główny prompt systemowy z placeholderami, np. {{entities_summary}}
+  entity_allowlist:
+    name: Lista dozwolonych encji
+    description: Encje, na których asystent może operować
+  service_allowlist:
+    name: Lista dozwolonych usług
+    description: Usługi, które asystent może wywoływać
+  addon_allowlist:
+    name: Lista dozwolonych dodatków
+    description: Dodatki, które asystent może odczytywać lub orkiestrwać
+network:
+  8099/TCP: Interfejs Copilot Brain i API MCP
