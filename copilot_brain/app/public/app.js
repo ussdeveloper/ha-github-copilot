@@ -20,6 +20,13 @@ const terminalLog = document.getElementById('terminalLog');
 const terminalForm = document.getElementById('terminalForm');
 const terminalInput = document.getElementById('terminalInput');
 const terminalClearButton = document.getElementById('terminalClearButton');
+const fileMenuButton = document.getElementById('fileMenuButton');
+const fileMenu = document.getElementById('fileMenu');
+const openSettingsMenuItem = document.getElementById('openSettingsMenuItem');
+const authorizeGithubMenuItem = document.getElementById('authorizeGithubMenuItem');
+const settingsModal = document.getElementById('settingsModal');
+const settingsModalBackdrop = document.getElementById('settingsModalBackdrop');
+const closeSettingsModalButton = document.getElementById('closeSettingsModalButton');
 
 const settingsForm = document.getElementById('settingsForm');
 const githubModelInput = document.getElementById('githubModelInput');
@@ -34,7 +41,6 @@ const addonAllowlistInput = document.getElementById('addonAllowlistInput');
 const systemPromptInput = document.getElementById('systemPromptInput');
 const testGithubButton = document.getElementById('testGithubButton');
 
-const menuButtons = Array.from(document.querySelectorAll('[data-target]'));
 const quickCommandButtons = Array.from(document.querySelectorAll('[data-terminal-command]'));
 
 const terminalHistoryKey = 'copilot-brain-terminal-history-v1';
@@ -50,9 +56,37 @@ function stringify(value) {
 }
 
 function setBadgeState(element, state, label) {
+  if (!element) {
+    return;
+  }
   element.classList.remove('ok', 'warning', 'error', 'neutral');
   element.classList.add(state);
   element.textContent = label;
+}
+
+function showFileMenu() {
+  fileMenu.classList.remove('hidden');
+  fileMenuButton.classList.add('open');
+  fileMenuButton.setAttribute('aria-expanded', 'true');
+}
+
+function hideFileMenu() {
+  fileMenu.classList.add('hidden');
+  fileMenuButton.classList.remove('open');
+  fileMenuButton.setAttribute('aria-expanded', 'false');
+}
+
+function openSettingsModal() {
+  hideFileMenu();
+  settingsModal.classList.remove('hidden');
+  settingsModalBackdrop.classList.remove('hidden');
+  settingsModal.setAttribute('aria-hidden', 'false');
+}
+
+function closeSettingsModal() {
+  settingsModal.classList.add('hidden');
+  settingsModalBackdrop.classList.add('hidden');
+  settingsModal.setAttribute('aria-hidden', 'true');
 }
 
 function appendMessage(role, text) {
@@ -306,28 +340,57 @@ async function refresh(options = {}) {
   }
 }
 
-for (const button of menuButtons) {
-  button.addEventListener('click', () => {
-    const target = document.getElementById(button.dataset.target);
-    if (!target) {
-      return;
-    }
-
-    for (const candidate of menuButtons) {
-      candidate.classList.remove('active');
-    }
-
-    button.classList.add('active');
-    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  });
-}
-
 for (const button of quickCommandButtons) {
   button.addEventListener('click', () => {
     terminalInput.value = button.dataset.terminalCommand ?? '';
     terminalInput.focus();
   });
 }
+
+fileMenuButton.addEventListener('click', () => {
+  if (fileMenu.classList.contains('hidden')) {
+    showFileMenu();
+  } else {
+    hideFileMenu();
+  }
+});
+
+fileMenuButton.addEventListener('mousedown', (event) => {
+  event.stopPropagation();
+});
+
+fileMenu.addEventListener('mousedown', (event) => {
+  event.stopPropagation();
+});
+
+openSettingsMenuItem.addEventListener('click', () => {
+  openSettingsModal();
+});
+
+authorizeGithubMenuItem.addEventListener('click', async () => {
+  openSettingsModal();
+  try {
+    testGithubButton.click();
+  } catch {
+    // no-op
+  }
+});
+
+closeSettingsModalButton.addEventListener('click', closeSettingsModal);
+settingsModalBackdrop.addEventListener('click', closeSettingsModal);
+
+document.addEventListener('click', (event) => {
+  if (!fileMenu.contains(event.target) && !fileMenuButton.contains(event.target)) {
+    hideFileMenu();
+  }
+});
+
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape') {
+    hideFileMenu();
+    closeSettingsModal();
+  }
+});
 
 testGithubButton.addEventListener('click', async () => {
   try {
@@ -487,7 +550,7 @@ if (terminalHistory.length === 0) {
 
 appendMessage(
   'assistant',
-  'Witaj w Copilot Brain 0.2.0. Masz u góry chat, na dole terminal HA, a z lewej menu pod kolejne funkcje. Zacznij od /entities albo komendy help w terminalu.',
+  'Witaj w Copilot Brain 0.2.1. U góry masz czat, na dole terminal, a ustawienia i autoryzację SDK znajdziesz w File.',
 );
 
 refresh({ forceSettings: true });

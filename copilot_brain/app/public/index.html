@@ -4,251 +4,250 @@
     <meta charset='UTF-8' />
     <meta name='viewport' content='width=device-width, initial-scale=1.0' />
     <title>Copilot Brain</title>
+    <link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/@mdi/font@7.4.47/css/materialdesignicons.min.css' />
     <link rel='stylesheet' href='/styles.css' />
   </head>
   <body>
     <div class='app-shell'>
-      <aside class='sidebar'>
-        <div class='brand-block'>
-          <p class='eyebrow'>Home Assistant × GitHub</p>
-          <h1>Copilot Brain</h1>
-          <div class='chip-row'>
-            <span class='chip chip-wip'>IN PROGRESS</span>
-            <span class='chip' id='versionChip'>v0.2.0</span>
+      <header class='menubar'>
+        <div class='menubar-left'>
+          <button type='button' class='app-title'>
+            <span class='mdi mdi-robot-outline'></span>
+            <span>Copilot Brain</span>
+          </button>
+
+          <div class='menu-group'>
+            <button type='button' class='menu-trigger' id='fileMenuButton' aria-expanded='false' aria-controls='fileMenu'>File</button>
+            <div class='menu-dropdown hidden' id='fileMenu' role='menu'>
+              <button type='button' class='menu-command' id='openSettingsMenuItem' role='menuitem'>
+                <span class='mdi mdi-cog-outline'></span>
+                <span>Settings</span>
+              </button>
+              <button type='button' class='menu-command' id='authorizeGithubMenuItem' role='menuitem'>
+                <span class='mdi mdi-github'></span>
+                <span>Authorize SDK in GitHub</span>
+              </button>
+            </div>
           </div>
-          <p class='sidebar-copy'>
-            Eksperymentalny panel operatorski: czat u góry, terminal HA na dole i boczne menu na funkcje, które jeszcze dorzucimy.
-          </p>
+
+          <button type='button' class='menu-trigger muted' disabled>Edit</button>
+          <button type='button' class='menu-trigger muted' disabled>View</button>
+          <button type='button' class='menu-trigger muted' disabled>Run</button>
         </div>
 
-        <nav class='menu'>
-          <button type='button' class='menu-item active' data-target='panel-chat'>💬 Chat</button>
-          <button type='button' class='menu-item' data-target='panel-terminal'>⌨️ Terminal HA</button>
-          <button type='button' class='menu-item' data-target='panel-overview'>🧭 Overview</button>
-          <button type='button' class='menu-item' data-target='panel-github'>🐙 GitHub</button>
-          <button type='button' class='menu-item' data-target='panel-settings'>⚙️ Settings</button>
-          <button type='button' class='menu-item' data-target='panel-approvals'>✅ Approvals</button>
-          <button type='button' class='menu-item' data-target='panel-audit'>📜 Audit</button>
-          <button type='button' class='menu-item' data-target='panel-roadmap'>🧪 Roadmap</button>
-        </nav>
+        <div class='menubar-right'>
+          <span class='status-pill neutral' id='serviceBadge'>Ładowanie usługi…</span>
+          <span class='status-pill neutral' id='haStatusBadge'>Ładowanie HA…</span>
+          <span class='status-pill neutral' id='githubStatusBadge'>Ładowanie GitHub…</span>
+        </div>
+      </header>
 
-        <section class='sidebar-note'>
-          <h2>Repo hygiene</h2>
-          <p>Nie wrzucamy do repo żadnych sekretów, `.env`, PEM-ów ani runtime data z `/data` i `.data`.</p>
-          <p>Ten build jest oznaczony jako <strong>experimental</strong>.</p>
-        </section>
-      </aside>
-
-      <div class='workspace'>
-        <header class='topbar'>
-          <div class='status-row'>
-            <span class='status-pill neutral' id='serviceBadge'>Ładowanie usługi…</span>
-            <span class='status-pill neutral' id='haStatusBadge'>Ładowanie HA…</span>
-            <span class='status-pill neutral' id='githubStatusBadge'>Ładowanie GitHub…</span>
+      <section class='titlebar'>
+        <div class='titlebar-main'>
+          <div class='title-line'>
+            <span class='mdi mdi-home-assistant'></span>
+            <strong>Home Assistant × GitHub</strong>
+            <span class='chip' id='versionChip'>v0.2.1</span>
           </div>
           <p class='health-text' id='healthText'>Ładowanie…</p>
+        </div>
+      </section>
+
+      <main class='workspace'>
+        <section class='panel chat-panel' id='panel-chat'>
+          <div class='panel-header compact'>
+            <div class='panel-title'>
+              <span class='mdi mdi-chat-processing-outline'></span>
+              <h2>Chat</h2>
+            </div>
+            <div class='panel-inline-meta'>
+              <span class='inline-note'>Top</span>
+            </div>
+          </div>
+
+          <div id='chatLog' class='chat-log'></div>
+
+          <form id='chatForm' class='composer'>
+            <textarea id='messageInput' rows='3' placeholder='Napisz wiadomość albo użyj /entities, /entity, /service…'></textarea>
+            <div class='composer-actions'>
+              <button type='submit'>
+                <span class='mdi mdi-send-outline'></span>
+                <span>Wyślij</span>
+              </button>
+            </div>
+          </form>
+        </section>
+
+        <section class='panel terminal-panel' id='panel-terminal'>
+          <div class='panel-header compact'>
+            <div class='panel-title'>
+              <span class='mdi mdi-console-line'></span>
+              <h2>Terminal</h2>
+            </div>
+            <div class='quick-command-row'>
+              <button type='button' class='ghost icon-only' data-terminal-command='help' title='help'>
+                <span class='mdi mdi-help-circle-outline'></span>
+              </button>
+              <button type='button' class='ghost icon-only' data-terminal-command='status' title='status'>
+                <span class='mdi mdi-information-outline'></span>
+              </button>
+              <button type='button' class='ghost icon-only' data-terminal-command='entities 20' title='entities'>
+                <span class='mdi mdi-lightbulb-group-outline'></span>
+              </button>
+              <button type='button' class='ghost icon-only' data-terminal-command='addons' title='addons'>
+                <span class='mdi mdi-package-variant-closed'></span>
+              </button>
+              <button type='button' class='ghost icon-only' data-terminal-command='approvals' title='approvals'>
+                <span class='mdi mdi-check-decagram-outline'></span>
+              </button>
+            </div>
+          </div>
+
+          <div id='terminalLog' class='terminal-log' aria-live='polite'></div>
+
+          <form id='terminalForm' class='terminal-form'>
+            <input
+              id='terminalInput'
+              type='text'
+              autocomplete='off'
+              spellcheck='false'
+              placeholder='help | status | entity sensor.kitchen_temperature | service light.turn_on light.living_room'
+            />
+            <div class='terminal-actions'>
+              <button type='button' class='ghost' id='terminalClearButton'>
+                <span class='mdi mdi-broom'></span>
+              </button>
+              <button type='submit'>
+                <span class='mdi mdi-play'></span>
+              </button>
+            </div>
+          </form>
+        </section>
+      </main>
+
+      <div class='modal-backdrop hidden' id='settingsModalBackdrop'></div>
+      <section class='modal hidden' id='settingsModal' aria-hidden='true' aria-labelledby='settingsModalTitle'>
+        <header class='modal-header'>
+          <div class='panel-title'>
+            <span class='mdi mdi-cog-outline'></span>
+            <h2 id='settingsModalTitle'>Settings</h2>
+          </div>
+          <button type='button' class='ghost icon-only' id='closeSettingsModalButton' title='Close'>
+            <span class='mdi mdi-close'></span>
+          </button>
         </header>
 
-        <div class='workspace-grid'>
-          <main class='primary-stack'>
-            <section class='panel chat-panel' id='panel-chat'>
-              <div class='panel-header'>
-                <div>
-                  <h2>Chat control room</h2>
-                  <p class='panel-copy'>
-                    Natural language chat plus szybkie komendy MVP: <code>/entities</code>, <code>/entity &lt;entity_id&gt;</code>, <code>/service &lt;domain.service&gt; &lt;entity_id&gt;</code>.
-                  </p>
-                </div>
-                <span class='chip subtle'>Top panel</span>
+        <div class='modal-body'>
+          <div class='settings-section'>
+            <div class='settings-section-header'>
+              <h3>Authorize SDK in GitHub</h3>
+              <button id='testGithubButton' type='button' class='secondary-button'>
+                <span class='mdi mdi-github'></span>
+                <span>Authorize</span>
+              </button>
+            </div>
+            <pre id='githubStatusBox'>Ładowanie…</pre>
+          </div>
+
+          <form id='settingsForm' class='settings-form'>
+            <div class='form-grid'>
+              <label>
+                <span>Model GitHub</span>
+                <input id='githubModelInput' type='text' placeholder='openai/gpt-4.1' />
+              </label>
+              <label>
+                <span>Approval mode</span>
+                <select id='approvalModeInput'>
+                  <option value='explicit'>explicit</option>
+                  <option value='read-only'>read-only</option>
+                </select>
+              </label>
+              <label>
+                <span>MCP token</span>
+                <input id='mcpTokenInput' type='password' placeholder='Leave blank to keep current token' />
+              </label>
+              <label>
+                <span>GitHub App ID</span>
+                <input id='githubAppIdInput' type='text' placeholder='GitHub App ID' />
+              </label>
+              <label>
+                <span>Installation ID</span>
+                <input id='githubInstallationIdInput' type='text' placeholder='Installation ID' />
+              </label>
+              <label class='full-width'>
+                <span>GitHub private key (base64 or PEM)</span>
+                <textarea id='githubPrivateKeyInput' rows='4' placeholder='Leave blank to keep current key'></textarea>
+              </label>
+              <label>
+                <span>Entity allowlist</span>
+                <textarea id='entityAllowlistInput' rows='3' placeholder='One entity per line'></textarea>
+              </label>
+              <label>
+                <span>Service allowlist</span>
+                <textarea id='serviceAllowlistInput' rows='3' placeholder='One service per line'></textarea>
+              </label>
+              <label class='full-width'>
+                <span>Addon allowlist</span>
+                <textarea id='addonAllowlistInput' rows='2' placeholder='One add-on slug per line'></textarea>
+              </label>
+              <label class='full-width'>
+                <span>System prompt</span>
+                <textarea id='systemPromptInput' rows='5' placeholder='Main system prompt template'></textarea>
+              </label>
+            </div>
+
+            <div class='composer-actions'>
+              <button type='submit'>
+                <span class='mdi mdi-content-save-outline'></span>
+                <span>Zapisz</span>
+              </button>
+            </div>
+          </form>
+
+          <div class='settings-footer-grid'>
+            <article class='info-tile'>
+              <div class='panel-title small'>
+                <span class='mdi mdi-cog-refresh-outline'></span>
+                <h3>Config</h3>
               </div>
+              <pre id='configBox'>Ładowanie…</pre>
+            </article>
 
-              <div id='chatLog' class='chat-log'></div>
-
-              <form id='chatForm' class='composer'>
-                <textarea id='messageInput' rows='4' placeholder='Napisz polecenie, pytanie albo użyj komendy…'></textarea>
-                <div class='composer-actions'>
-                  <button type='submit'>Wyślij</button>
-                </div>
-              </form>
-            </section>
-
-            <section class='panel terminal-panel' id='panel-terminal'>
-              <div class='panel-header'>
-                <div>
-                  <h2>Terminal HA</h2>
-                  <p class='panel-copy'>
-                    Bezpieczna konsola operacyjna dla Home Assistanta — nie raw shell, tylko sterowane komendy add-onu.
-                  </p>
-                </div>
-                <div class='quick-command-row'>
-                  <button type='button' class='ghost' data-terminal-command='help'>help</button>
-                  <button type='button' class='ghost' data-terminal-command='status'>status</button>
-                  <button type='button' class='ghost' data-terminal-command='entities 20'>entities 20</button>
-                  <button type='button' class='ghost' data-terminal-command='addons'>addons</button>
-                  <button type='button' class='ghost' data-terminal-command='nodered'>nodered</button>
-                  <button type='button' class='ghost' data-terminal-command='approvals'>approvals</button>
-                </div>
+            <article class='info-tile'>
+              <div class='panel-title small'>
+                <span class='mdi mdi-home-search-outline'></span>
+                <h3>Context</h3>
               </div>
+              <pre id='contextBox'>Ładowanie…</pre>
+            </article>
 
-              <div id='terminalLog' class='terminal-log' aria-live='polite'></div>
-
-              <form id='terminalForm' class='terminal-form'>
-                <input
-                  id='terminalInput'
-                  type='text'
-                  autocomplete='off'
-                  spellcheck='false'
-                  placeholder='help | status | entity sensor.kitchen_temperature | service light.turn_on light.living_room'
-                />
-                <div class='terminal-actions'>
-                  <button type='button' class='ghost' id='terminalClearButton'>Wyczyść</button>
-                  <button type='submit'>Uruchom</button>
-                </div>
-              </form>
-            </section>
-          </main>
-
-          <aside class='dock'>
-            <section class='panel' id='panel-overview'>
-              <div class='panel-header'>
-                <div>
-                  <h2>Overview</h2>
-                  <p class='panel-copy'>Aktualny kontekst, zredagowana konfiguracja i szybki podgląd środowiska.</p>
-                </div>
+            <article class='info-tile'>
+              <div class='panel-title small'>
+                <span class='mdi mdi-source-branch'></span>
+                <h3>Audit</h3>
               </div>
+              <pre id='auditBox'>Ładowanie…</pre>
+            </article>
 
-              <div class='mini-grid'>
-                <article class='mini-panel'>
-                  <h3>Konfiguracja</h3>
-                  <pre id='configBox'>Ładowanie…</pre>
-                </article>
-                <article class='mini-panel'>
-                  <h3>Kontekst Home Assistant</h3>
-                  <pre id='contextBox'>Ładowanie…</pre>
-                </article>
-              </div>
-            </section>
-
-            <section class='panel' id='panel-github'>
-              <div class='panel-header'>
-                <div>
-                  <h2>GitHub control</h2>
-                  <p class='panel-copy'>Status GitHub App, modeli i szybki test autoryzacji.</p>
-                </div>
-                <button id='testGithubButton' type='button'>Test GitHub auth</button>
-              </div>
-
-              <div class='mini-grid'>
-                <article class='mini-panel'>
-                  <h3>GitHub App status</h3>
-                  <pre id='githubStatusBox'>Ładowanie…</pre>
-                </article>
-                <article class='mini-panel'>
-                  <h3>Modele</h3>
-                  <pre id='modelsBox'>Ładowanie…</pre>
-                </article>
-              </div>
-            </section>
-
-            <section class='panel' id='panel-settings'>
-              <div class='panel-header'>
-                <div>
-                  <h2>Runtime settings</h2>
-                  <p class='panel-copy'>Konfiguracja live dla modelu, auth i bezpiecznych allowlist.</p>
-                </div>
-              </div>
-
-              <form id='settingsForm' class='settings-form'>
-                <div class='form-grid'>
-                  <label>
-                    <span>Model GitHub</span>
-                    <input id='githubModelInput' type='text' placeholder='openai/gpt-4.1' />
-                  </label>
-                  <label>
-                    <span>Approval mode</span>
-                    <select id='approvalModeInput'>
-                      <option value='explicit'>explicit</option>
-                      <option value='read-only'>read-only</option>
-                    </select>
-                  </label>
-                  <label>
-                    <span>MCP token</span>
-                    <input id='mcpTokenInput' type='password' placeholder='Leave blank to keep current token' />
-                  </label>
-                  <label>
-                    <span>GitHub App ID</span>
-                    <input id='githubAppIdInput' type='text' placeholder='GitHub App ID' />
-                  </label>
-                  <label>
-                    <span>Installation ID</span>
-                    <input id='githubInstallationIdInput' type='text' placeholder='Installation ID' />
-                  </label>
-                  <label class='full-width'>
-                    <span>GitHub private key (base64 or PEM)</span>
-                    <textarea id='githubPrivateKeyInput' rows='4' placeholder='Leave blank to keep current key'></textarea>
-                  </label>
-                  <label>
-                    <span>Entity allowlist</span>
-                    <textarea id='entityAllowlistInput' rows='4' placeholder='One entity per line'></textarea>
-                  </label>
-                  <label>
-                    <span>Service allowlist</span>
-                    <textarea id='serviceAllowlistInput' rows='4' placeholder='One service per line'></textarea>
-                  </label>
-                  <label class='full-width'>
-                    <span>Addon allowlist</span>
-                    <textarea id='addonAllowlistInput' rows='3' placeholder='One add-on slug per line'></textarea>
-                  </label>
-                  <label class='full-width'>
-                    <span>System prompt</span>
-                    <textarea id='systemPromptInput' rows='6' placeholder='Main system prompt template'></textarea>
-                  </label>
-                </div>
-                <div class='composer-actions'>
-                  <button type='submit'>Zapisz ustawienia</button>
-                </div>
-              </form>
-            </section>
-
-            <section class='panel' id='panel-approvals'>
-              <div class='panel-header'>
-                <div>
-                  <h2>Pending approvals</h2>
-                  <p class='panel-copy'>Każda operacja mutująca w trybie explicit ląduje tutaj przed wykonaniem.</p>
-                </div>
+            <article class='info-tile'>
+              <div class='panel-title small'>
+                <span class='mdi mdi-check-decagram-outline'></span>
+                <h3>Approvals</h3>
                 <span class='chip' id='approvalCount'>0</span>
               </div>
               <div id='approvalsBox' class='approval-list'>Ładowanie…</div>
-            </section>
+            </article>
 
-            <section class='panel' id='panel-audit'>
-              <div class='panel-header'>
-                <div>
-                  <h2>Audit log</h2>
-                  <p class='panel-copy'>Ostatnie zdarzenia, błędy i wykonane akcje.</p>
-                </div>
+            <article class='info-tile'>
+              <div class='panel-title small'>
+                <span class='mdi mdi-atom-variant'></span>
+                <h3>Models</h3>
               </div>
-              <pre id='auditBox'>Ładowanie…</pre>
-            </section>
-
-            <section class='panel' id='panel-roadmap'>
-              <div class='panel-header'>
-                <div>
-                  <h2>Roadmap</h2>
-                  <p class='panel-copy'>Miejsca w interfejsie już są przygotowane, kolejne funkcje możemy dokładać bez demolki układu.</p>
-                </div>
-              </div>
-              <ul class='roadmap-list'>
-                <li>więcej narzędzi HA i Supervisor API</li>
-                <li>głębsza integracja Node-RED</li>
-                <li>predefiniowane makra operatorskie</li>
-                <li>lepsza obserwowalność i stream logów</li>
-                <li>rozszerzenia menu pod kolejne capability</li>
-              </ul>
-            </section>
-          </aside>
+              <pre id='modelsBox'>Ładowanie…</pre>
+            </article>
+          </div>
         </div>
-      </div>
+      </section>
     </div>
 
     <script type='module' src='/app.js'></script>

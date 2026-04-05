@@ -47,7 +47,7 @@ export function createMcpRouter(options: {
               protocolVersion: '2026-03-26',
               serverInfo: {
                 name: 'ha-copilot-brain',
-                version: options.version ?? '0.2.0',
+                version: options.version ?? '0.2.1',
               },
               capabilities: {
                 tools: {},
