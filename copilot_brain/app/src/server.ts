@@ -21,7 +21,7 @@ import { createMcpRouter } from './mcp/server.js';
 import { ChatOrchestrator } from './chat/orchestrator.js';
 import { summarizeAddons, summarizeStates } from './prompt/template.js';
 
-const APP_VERSION = '0.2.1';
+const APP_VERSION = '0.3.0';
 const APP_STAGE = 'experimental';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -171,22 +171,37 @@ function renderTerminalHelp(): string {
   return [
     'Copilot Brain HA terminal commands',
     '',
-    'help',
-    'status',
-    'context',
-    'entities [limit]',
-    'entity <entity_id>',
-    'addons',
-    'nodered',
-    'service <domain.service> <entity_id> {json}',
-    'approvals',
-    'approve <approval_id>',
-    'reject <approval_id>',
-    'audit [limit]',
-    'models',
-    'github',
-    'config',
-    'clear',
+    '═══ Basic ═══',
+    'help                        Show this help',
+    'status                      Service & connection status',
+    'clear                       Clear terminal',
+    '',
+    '═══ Home Assistant ═══',
+    'entities [limit]            List entities',
+    'entity <entity_id>          Inspect single entity',
+    'context                     Entities & addons summary',
+    'addons                      List installed add-ons',
+    'nodered                     Node-RED addon status',
+    'service <svc> <eid> {json}  Call a service',
+    '',
+    '═══ System ═══',
+    'system                      Supervisor info',
+    'host                        Host/OS details',
+    'network                     Network interfaces',
+    'hardware                    Hardware info',
+    'logs core [lines]           HA Core logs',
+    'logs supervisor [lines]     Supervisor logs',
+    'logs <addon_slug> [lines]   Add-on logs',
+    'stats <addon_slug>          Add-on resource stats',
+    '',
+    '═══ Tools ═══',
+    'approvals                   List pending approvals',
+    'approve <id>                Approve pending action',
+    'reject <id>                 Reject pending action',
+    'audit [limit]               Show audit log',
+    'models                      Available AI models',
+    'github                      GitHub connection info',
+    'config                      Current config (redacted)',
   ].join('\n');
 }
 
@@ -439,6 +454,61 @@ async function executeTerminalCommand(
         ok: true,
         output: formatJson(redactConfig(runtime.config)),
       };
+    }
+
+    case 'system': {
+      const info = await runtime.ha.getSupervisorInfo();
+      return { ok: true, output: formatJson(info) };
+    }
+
+    case 'host': {
+      const [hostInfo, osInfo] = await Promise.all([
+        runtime.ha.getHostInfo(),
+        runtime.ha.getOsInfo(),
+      ]);
+      return {
+        ok: true,
+        output: [
+          'Host info',
+          formatJson(hostInfo),
+          '',
+          'OS info',
+          formatJson(osInfo),
+        ].join('\n'),
+      };
+    }
+
+    case 'network': {
+      const info = await runtime.ha.getNetworkInfo();
+      return { ok: true, output: formatJson(info) };
+    }
+
+    case 'hardware': {
+      const info = await runtime.ha.getHardwareInfo();
+      return { ok: true, output: formatJson(info) };
+    }
+
+    case 'logs': {
+      const target = args[0] ?? 'core';
+      const lines = clampNumber(args[1], 50, 500);
+      let logText: string;
+      if (target === 'core') {
+        logText = await runtime.ha.getCoreLogs(lines);
+      } else if (target === 'supervisor') {
+        logText = await runtime.ha.getSupervisorLogs(lines);
+      } else {
+        logText = await runtime.ha.getAddonLogs(target, lines);
+      }
+      return { ok: true, output: logText || '(empty)' };
+    }
+
+    case 'stats': {
+      const slug = args[0];
+      if (!slug) {
+        return { ok: false, output: 'Usage: stats <addon_slug>', exitCode: 64 };
+      }
+      const info = await runtime.ha.getAddonStats(slug);
+      return { ok: true, output: formatJson(info) };
     }
 
     default:

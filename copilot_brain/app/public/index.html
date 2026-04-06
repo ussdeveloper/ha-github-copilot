@@ -9,246 +9,209 @@
   </head>
   <body>
     <div class='app-shell'>
+
+      <!-- ╔══ TOP MENU ══╗ -->
       <header class='menubar'>
         <div class='menubar-left'>
-          <button type='button' class='app-title'>
-            <span class='mdi mdi-robot-outline'></span>
-            <span>Copilot Brain</span>
-          </button>
+          <span class='app-icon mdi mdi-robot-outline'></span>
 
           <div class='menu-group'>
-            <button type='button' class='menu-trigger' id='fileMenuButton' aria-expanded='false' aria-controls='fileMenu'>File</button>
+            <button type='button' class='menu-trigger' id='fileMenuButton'>File</button>
             <div class='menu-dropdown hidden' id='fileMenu' role='menu'>
               <button type='button' class='menu-command' id='openSettingsMenuItem' role='menuitem'>
-                <span class='mdi mdi-cog-outline'></span>
-                <span>Settings</span>
+                <span class='mdi mdi-cog-outline'></span> Settings
               </button>
               <button type='button' class='menu-command' id='authorizeGithubMenuItem' role='menuitem'>
-                <span class='mdi mdi-github'></span>
-                <span>Authorize SDK in GitHub</span>
+                <span class='mdi mdi-github'></span> Authorize SDK in GitHub
+              </button>
+              <hr class='menu-sep' />
+              <button type='button' class='menu-command' id='openCommandsMenuItem' role='menuitem'>
+                <span class='mdi mdi-lightning-bolt-outline'></span> Predefined Commands
+              </button>
+            </div>
+          </div>
+
+          <div class='menu-group'>
+            <button type='button' class='menu-trigger' id='viewMenuButton'>View</button>
+            <div class='menu-dropdown hidden' id='viewMenu' role='menu'>
+              <button type='button' class='menu-command' data-switch-tab='terminal' role='menuitem'>
+                <span class='mdi mdi-console-line'></span> Terminal
+              </button>
+              <button type='button' class='menu-command' data-switch-tab='output' role='menuitem'>
+                <span class='mdi mdi-text-box-outline'></span> Output
               </button>
             </div>
           </div>
 
           <button type='button' class='menu-trigger muted' disabled>Edit</button>
-          <button type='button' class='menu-trigger muted' disabled>View</button>
           <button type='button' class='menu-trigger muted' disabled>Run</button>
         </div>
 
         <div class='menubar-right'>
-          <span class='status-pill neutral' id='serviceBadge'>Ładowanie usługi…</span>
-          <span class='status-pill neutral' id='haStatusBadge'>Ładowanie HA…</span>
-          <span class='status-pill neutral' id='githubStatusBadge'>Ładowanie GitHub…</span>
+          <span class='menubar-info' id='healthText'>Ładowanie…</span>
         </div>
       </header>
 
-      <section class='titlebar'>
-        <div class='titlebar-main'>
-          <div class='title-line'>
-            <span class='mdi mdi-home-assistant'></span>
-            <strong>Home Assistant × GitHub</strong>
-            <span class='chip' id='versionChip'>v0.2.1</span>
-          </div>
-          <p class='health-text' id='healthText'>Ładowanie…</p>
-        </div>
-      </section>
-
+      <!-- ╔══ WORKSPACE ══╗ -->
       <main class='workspace'>
-        <section class='panel chat-panel' id='panel-chat'>
-          <div class='panel-header compact'>
-            <div class='panel-title'>
-              <span class='mdi mdi-chat-processing-outline'></span>
-              <h2>Chat</h2>
-            </div>
-            <div class='panel-inline-meta'>
-              <span class='inline-note'>Top</span>
-            </div>
-          </div>
 
+        <!-- ── Chat panel (top) ── -->
+        <section class='chat-panel' id='chatPanel'>
           <div id='chatLog' class='chat-log'></div>
-
           <form id='chatForm' class='composer'>
-            <textarea id='messageInput' rows='3' placeholder='Napisz wiadomość albo użyj /entities, /entity, /service…'></textarea>
-            <div class='composer-actions'>
-              <button type='submit'>
-                <span class='mdi mdi-send-outline'></span>
-                <span>Wyślij</span>
+            <div class='composer-row'>
+              <textarea id='messageInput' rows='2'
+                placeholder='Zapytaj Copilota o Home Assistant… (Ctrl+Enter)'></textarea>
+              <button type='submit' class='icon-btn' title='Wyślij (Ctrl+Enter)'>
+                <span class='mdi mdi-send'></span>
               </button>
             </div>
           </form>
         </section>
 
-        <section class='panel terminal-panel' id='panel-terminal'>
-          <div class='panel-header compact'>
-            <div class='panel-title'>
-              <span class='mdi mdi-console-line'></span>
-              <h2>Terminal</h2>
-            </div>
-            <div class='quick-command-row'>
-              <button type='button' class='ghost icon-only' data-terminal-command='help' title='help'>
-                <span class='mdi mdi-help-circle-outline'></span>
-              </button>
-              <button type='button' class='ghost icon-only' data-terminal-command='status' title='status'>
-                <span class='mdi mdi-information-outline'></span>
-              </button>
-              <button type='button' class='ghost icon-only' data-terminal-command='entities 20' title='entities'>
-                <span class='mdi mdi-lightbulb-group-outline'></span>
-              </button>
-              <button type='button' class='ghost icon-only' data-terminal-command='addons' title='addons'>
-                <span class='mdi mdi-package-variant-closed'></span>
-              </button>
-              <button type='button' class='ghost icon-only' data-terminal-command='approvals' title='approvals'>
-                <span class='mdi mdi-check-decagram-outline'></span>
-              </button>
-            </div>
+        <!-- ── Resize handle ── -->
+        <div class='resize-handle' id='resizeHandle'></div>
+
+        <!-- ── Log panel (bottom) ── -->
+        <section class='log-panel' id='logPanel'>
+          <div class='panel-tabs' id='panelTabs'>
+            <button type='button' class='tab active' data-tab='terminal'>
+              <span class='mdi mdi-console-line'></span> Terminal
+            </button>
+            <button type='button' class='tab' data-tab='output'>
+              <span class='mdi mdi-text-box-outline'></span> Output
+            </button>
+            <div class='tab-spacer'></div>
+            <button type='button' class='tab-action' id='terminalClearButton' title='Wyczyść'>
+              <span class='mdi mdi-broom'></span>
+            </button>
           </div>
 
-          <div id='terminalLog' class='terminal-log' aria-live='polite'></div>
-
-          <form id='terminalForm' class='terminal-form'>
-            <input
-              id='terminalInput'
-              type='text'
-              autocomplete='off'
-              spellcheck='false'
-              placeholder='help | status | entity sensor.kitchen_temperature | service light.turn_on light.living_room'
-            />
-            <div class='terminal-actions'>
-              <button type='button' class='ghost' id='terminalClearButton'>
-                <span class='mdi mdi-broom'></span>
-              </button>
-              <button type='submit'>
+          <div class='tab-body' id='terminalTabBody'>
+            <div id='terminalLog' class='terminal-log' aria-live='polite'></div>
+            <form id='terminalForm' class='terminal-form'>
+              <input id='terminalInput' type='text' autocomplete='off' spellcheck='false'
+                placeholder='help | status | entities | system | host | logs &lt;addon&gt;' />
+              <button type='submit' class='icon-btn' title='Uruchom'>
                 <span class='mdi mdi-play'></span>
               </button>
-            </div>
-          </form>
+            </form>
+          </div>
+
+          <div class='tab-body hidden' id='outputTabBody'>
+            <div id='outputLog' class='terminal-log'></div>
+          </div>
         </section>
+
       </main>
 
-      <div class='modal-backdrop hidden' id='settingsModalBackdrop'></div>
-      <section class='modal hidden' id='settingsModal' aria-hidden='true' aria-labelledby='settingsModalTitle'>
-        <header class='modal-header'>
-          <div class='panel-title'>
-            <span class='mdi mdi-cog-outline'></span>
-            <h2 id='settingsModalTitle'>Settings</h2>
+      <!-- ╔══ STATUS BAR ══╗ -->
+      <footer class='statusbar'>
+        <div class='statusbar-left'>
+          <span class='sb-item' id='haStatusItem'>
+            <span class='mdi mdi-home-assistant'></span>
+            <span id='haStatusLabel'>HA</span>
+          </span>
+          <span class='sb-item' id='githubStatusItem'>
+            <span class='mdi mdi-github'></span>
+            <span id='githubStatusLabel'>GitHub</span>
+          </span>
+        </div>
+        <div class='statusbar-right'>
+          <span class='sb-item'>
+            <span class='mdi mdi-atom-variant'></span>
+            <span id='modelLabel'>—</span>
+          </span>
+          <span class='sb-item'>
+            <span class='mdi mdi-tag-outline'></span>
+            <span id='versionLabel'>v0.3.0</span>
+          </span>
+        </div>
+      </footer>
+
+    </div>
+
+    <!-- ╔══ SETTINGS MODAL ══╗ -->
+    <div class='modal-backdrop hidden' id='settingsModalBackdrop'></div>
+    <section class='modal hidden' id='settingsModal' aria-hidden='true'>
+      <header class='modal-header'>
+        <div class='panel-title'><span class='mdi mdi-cog-outline'></span><h2>Settings</h2></div>
+        <button type='button' class='tab-action' id='closeSettingsModalButton' title='Zamknij'>
+          <span class='mdi mdi-close'></span>
+        </button>
+      </header>
+      <div class='modal-body'>
+        <div class='settings-section'>
+          <div class='settings-section-header'>
+            <h3>Authorize SDK in GitHub</h3>
+            <button id='testGithubButton' type='button' class='secondary-button'>
+              <span class='mdi mdi-github'></span> Authorize
+            </button>
           </div>
-          <button type='button' class='ghost icon-only' id='closeSettingsModalButton' title='Close'>
-            <span class='mdi mdi-close'></span>
-          </button>
-        </header>
+          <pre id='githubStatusBox'>Ładowanie…</pre>
+        </div>
 
-        <div class='modal-body'>
-          <div class='settings-section'>
-            <div class='settings-section-header'>
-              <h3>Authorize SDK in GitHub</h3>
-              <button id='testGithubButton' type='button' class='secondary-button'>
-                <span class='mdi mdi-github'></span>
-                <span>Authorize</span>
-              </button>
-            </div>
-            <pre id='githubStatusBox'>Ładowanie…</pre>
+        <form id='settingsForm' class='settings-form'>
+          <div class='form-grid'>
+            <label><span>Model GitHub</span><input id='githubModelInput' type='text' placeholder='openai/gpt-4.1' /></label>
+            <label><span>Approval mode</span>
+              <select id='approvalModeInput'>
+                <option value='explicit'>explicit</option>
+                <option value='read-only'>read-only</option>
+              </select>
+            </label>
+            <label><span>MCP token</span><input id='mcpTokenInput' type='password' placeholder='Zostaw puste aby zachować' /></label>
+            <label><span>GitHub App ID</span><input id='githubAppIdInput' type='text' /></label>
+            <label><span>Installation ID</span><input id='githubInstallationIdInput' type='text' /></label>
+            <label class='full-width'><span>GitHub private key (base64 / PEM)</span><textarea id='githubPrivateKeyInput' rows='3'></textarea></label>
+            <label><span>Entity allowlist</span><textarea id='entityAllowlistInput' rows='3' placeholder='Jedna encja na linię'></textarea></label>
+            <label><span>Service allowlist</span><textarea id='serviceAllowlistInput' rows='3' placeholder='Jedna usługa na linię'></textarea></label>
+            <label class='full-width'><span>Addon allowlist</span><textarea id='addonAllowlistInput' rows='2'></textarea></label>
+            <label class='full-width'><span>System prompt</span><textarea id='systemPromptInput' rows='4'></textarea></label>
           </div>
+          <div class='form-actions'>
+            <button type='submit'><span class='mdi mdi-content-save-outline'></span> Zapisz</button>
+          </div>
+        </form>
 
-          <form id='settingsForm' class='settings-form'>
-            <div class='form-grid'>
-              <label>
-                <span>Model GitHub</span>
-                <input id='githubModelInput' type='text' placeholder='openai/gpt-4.1' />
-              </label>
-              <label>
-                <span>Approval mode</span>
-                <select id='approvalModeInput'>
-                  <option value='explicit'>explicit</option>
-                  <option value='read-only'>read-only</option>
-                </select>
-              </label>
-              <label>
-                <span>MCP token</span>
-                <input id='mcpTokenInput' type='password' placeholder='Leave blank to keep current token' />
-              </label>
-              <label>
-                <span>GitHub App ID</span>
-                <input id='githubAppIdInput' type='text' placeholder='GitHub App ID' />
-              </label>
-              <label>
-                <span>Installation ID</span>
-                <input id='githubInstallationIdInput' type='text' placeholder='Installation ID' />
-              </label>
-              <label class='full-width'>
-                <span>GitHub private key (base64 or PEM)</span>
-                <textarea id='githubPrivateKeyInput' rows='4' placeholder='Leave blank to keep current key'></textarea>
-              </label>
-              <label>
-                <span>Entity allowlist</span>
-                <textarea id='entityAllowlistInput' rows='3' placeholder='One entity per line'></textarea>
-              </label>
-              <label>
-                <span>Service allowlist</span>
-                <textarea id='serviceAllowlistInput' rows='3' placeholder='One service per line'></textarea>
-              </label>
-              <label class='full-width'>
-                <span>Addon allowlist</span>
-                <textarea id='addonAllowlistInput' rows='2' placeholder='One add-on slug per line'></textarea>
-              </label>
-              <label class='full-width'>
-                <span>System prompt</span>
-                <textarea id='systemPromptInput' rows='5' placeholder='Main system prompt template'></textarea>
-              </label>
-            </div>
+        <div class='settings-footer-grid'>
+          <article class='info-tile'><h3><span class='mdi mdi-cog-refresh-outline'></span> Config</h3><pre id='configBox'>—</pre></article>
+          <article class='info-tile'><h3><span class='mdi mdi-home-search-outline'></span> Context</h3><pre id='contextBox'>—</pre></article>
+          <article class='info-tile'><h3><span class='mdi mdi-source-branch'></span> Audit</h3><pre id='auditBox'>—</pre></article>
+          <article class='info-tile'>
+            <h3><span class='mdi mdi-check-decagram-outline'></span> Approvals <span class='chip' id='approvalCount'>0</span></h3>
+            <div id='approvalsBox' class='approval-list'>—</div>
+          </article>
+          <article class='info-tile'><h3><span class='mdi mdi-atom-variant'></span> Models</h3><pre id='modelsBox'>—</pre></article>
+        </div>
+      </div>
+    </section>
 
-            <div class='composer-actions'>
-              <button type='submit'>
-                <span class='mdi mdi-content-save-outline'></span>
-                <span>Zapisz</span>
-              </button>
+    <!-- ╔══ COMMANDS MODAL ══╗ -->
+    <div class='modal-backdrop hidden' id='commandsModalBackdrop'></div>
+    <section class='modal hidden' id='commandsModal' aria-hidden='true'>
+      <header class='modal-header'>
+        <div class='panel-title'><span class='mdi mdi-lightning-bolt-outline'></span><h2>Predefined Commands</h2></div>
+        <button type='button' class='tab-action' id='closeCommandsModalButton' title='Zamknij'>
+          <span class='mdi mdi-close'></span>
+        </button>
+      </header>
+      <div class='modal-body'>
+        <p class='muted-text'>Szybkie komendy z promptem. Kliknij aby wysłać do AI i otrzymać wynik.</p>
+        <div id='commandsList' class='commands-list'></div>
+        <div class='settings-section'>
+          <h3>Nowa komenda</h3>
+          <form id='addCommandForm' class='form-grid'>
+            <label><span>Nazwa</span><input id='cmdNameInput' type='text' placeholder='np. Status świateł' /></label>
+            <label><span>Ikona MDI</span><input id='cmdIconInput' type='text' placeholder='mdi-lightbulb' /></label>
+            <label class='full-width'><span>Prompt</span><textarea id='cmdPromptInput' rows='3' placeholder='Sprawdź status wszystkich świateł…'></textarea></label>
+            <div class='form-actions'>
+              <button type='submit'><span class='mdi mdi-plus'></span> Dodaj</button>
             </div>
           </form>
-
-          <div class='settings-footer-grid'>
-            <article class='info-tile'>
-              <div class='panel-title small'>
-                <span class='mdi mdi-cog-refresh-outline'></span>
-                <h3>Config</h3>
-              </div>
-              <pre id='configBox'>Ładowanie…</pre>
-            </article>
-
-            <article class='info-tile'>
-              <div class='panel-title small'>
-                <span class='mdi mdi-home-search-outline'></span>
-                <h3>Context</h3>
-              </div>
-              <pre id='contextBox'>Ładowanie…</pre>
-            </article>
-
-            <article class='info-tile'>
-              <div class='panel-title small'>
-                <span class='mdi mdi-source-branch'></span>
-                <h3>Audit</h3>
-              </div>
-              <pre id='auditBox'>Ładowanie…</pre>
-            </article>
-
-            <article class='info-tile'>
-              <div class='panel-title small'>
-                <span class='mdi mdi-check-decagram-outline'></span>
-                <h3>Approvals</h3>
-                <span class='chip' id='approvalCount'>0</span>
-              </div>
-              <div id='approvalsBox' class='approval-list'>Ładowanie…</div>
-            </article>
-
-            <article class='info-tile'>
-              <div class='panel-title small'>
-                <span class='mdi mdi-atom-variant'></span>
-                <h3>Models</h3>
-              </div>
-              <pre id='modelsBox'>Ładowanie…</pre>
-            </article>
-          </div>
         </div>
-      </section>
-    </div>
+      </div>
+    </section>
 
     <script type='module' src='/app.js'></script>
   </body>

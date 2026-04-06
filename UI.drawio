@@ -1,0 +1,31 @@
+<mxfile host="65bd71144e">
+    <diagram id="yqtMkTPYsppSImETameg" name="Page-1">
+        <mxGraphModel dx="777" dy="604" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="2" value="obaszar robocz ui" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="10" y="20" width="760" height="590" as="geometry"/>
+                </mxCell>
+                <mxCell id="3" value="top menu" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="10" y="20" width="760" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="4" value="Loga autoscroll enabled" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="10" y="390" width="760" height="220" as="geometry"/>
+                </mxCell>
+                <mxCell id="5" value="Log bar/menu" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="10" y="390" width="760" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="6" value="resizebar chat&amp;lt;&amp;gt;log" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="10" y="380" width="760" height="10" as="geometry"/>
+                </mxCell>
+                <mxCell id="7" value="status bar" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="10" y="590" width="760" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="8" value="chat with responses like chat w vscode" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="10" y="40" width="760" height="340" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>

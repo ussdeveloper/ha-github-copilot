@@ -1,425 +1,403 @@
-const healthText = document.getElementById('healthText');
-const serviceBadge = document.getElementById('serviceBadge');
-const haStatusBadge = document.getElementById('haStatusBadge');
-const githubStatusBadge = document.getElementById('githubStatusBadge');
-const versionChip = document.getElementById('versionChip');
+/* ═══  Copilot Brain 0.3.0 — frontend  ═══ */
 
-const configBox = document.getElementById('configBox');
-const githubStatusBox = document.getElementById('githubStatusBox');
-const contextBox = document.getElementById('contextBox');
-const modelsBox = document.getElementById('modelsBox');
-const auditBox = document.getElementById('auditBox');
-const approvalsBox = document.getElementById('approvalsBox');
-const approvalCount = document.getElementById('approvalCount');
+// ── DOM refs ──
+const $ = (id) => document.getElementById(id);
 
-const chatLog = document.getElementById('chatLog');
-const chatForm = document.getElementById('chatForm');
-const messageInput = document.getElementById('messageInput');
+const healthText       = $('healthText');
+const versionLabel     = $('versionLabel');
+const modelLabel       = $('modelLabel');
+const haStatusLabel    = $('haStatusLabel');
+const githubStatusLabel= $('githubStatusLabel');
+const statusbar        = document.querySelector('.statusbar');
 
-const terminalLog = document.getElementById('terminalLog');
-const terminalForm = document.getElementById('terminalForm');
-const terminalInput = document.getElementById('terminalInput');
-const terminalClearButton = document.getElementById('terminalClearButton');
-const fileMenuButton = document.getElementById('fileMenuButton');
-const fileMenu = document.getElementById('fileMenu');
-const openSettingsMenuItem = document.getElementById('openSettingsMenuItem');
-const authorizeGithubMenuItem = document.getElementById('authorizeGithubMenuItem');
-const settingsModal = document.getElementById('settingsModal');
-const settingsModalBackdrop = document.getElementById('settingsModalBackdrop');
-const closeSettingsModalButton = document.getElementById('closeSettingsModalButton');
+const chatLog          = $('chatLog');
+const chatForm         = $('chatForm');
+const messageInput     = $('messageInput');
 
-const settingsForm = document.getElementById('settingsForm');
-const githubModelInput = document.getElementById('githubModelInput');
-const approvalModeInput = document.getElementById('approvalModeInput');
-const mcpTokenInput = document.getElementById('mcpTokenInput');
-const githubAppIdInput = document.getElementById('githubAppIdInput');
-const githubInstallationIdInput = document.getElementById('githubInstallationIdInput');
-const githubPrivateKeyInput = document.getElementById('githubPrivateKeyInput');
-const entityAllowlistInput = document.getElementById('entityAllowlistInput');
-const serviceAllowlistInput = document.getElementById('serviceAllowlistInput');
-const addonAllowlistInput = document.getElementById('addonAllowlistInput');
-const systemPromptInput = document.getElementById('systemPromptInput');
-const testGithubButton = document.getElementById('testGithubButton');
+const terminalLog      = $('terminalLog');
+const terminalForm     = $('terminalForm');
+const terminalInput    = $('terminalInput');
+const terminalClearBtn = $('terminalClearButton');
+const outputLog        = $('outputLog');
 
-const quickCommandButtons = Array.from(document.querySelectorAll('[data-terminal-command]'));
+const fileMenuButton   = $('fileMenuButton');
+const fileMenu         = $('fileMenu');
+const viewMenuButton   = $('viewMenuButton');
+const viewMenu         = $('viewMenu');
 
-const terminalHistoryKey = 'copilot-brain-terminal-history-v1';
+const settingsModal         = $('settingsModal');
+const settingsModalBackdrop = $('settingsModalBackdrop');
+const closeSettingsModalBtn = $('closeSettingsModalButton');
+const openSettingsItem      = $('openSettingsMenuItem');
+const authorizeGithubItem   = $('authorizeGithubMenuItem');
+
+const commandsModal         = $('commandsModal');
+const commandsModalBackdrop = $('commandsModalBackdrop');
+const closeCommandsModalBtn = $('closeCommandsModalButton');
+const openCommandsItem      = $('openCommandsMenuItem');
+const commandsList          = $('commandsList');
+const addCommandForm        = $('addCommandForm');
+
+const settingsForm          = $('settingsForm');
+const githubModelInput      = $('githubModelInput');
+const approvalModeInput     = $('approvalModeInput');
+const mcpTokenInput         = $('mcpTokenInput');
+const githubAppIdInput      = $('githubAppIdInput');
+const githubInstallationIdInput = $('githubInstallationIdInput');
+const githubPrivateKeyInput = $('githubPrivateKeyInput');
+const entityAllowlistInput  = $('entityAllowlistInput');
+const serviceAllowlistInput = $('serviceAllowlistInput');
+const addonAllowlistInput   = $('addonAllowlistInput');
+const systemPromptInput     = $('systemPromptInput');
+const testGithubButton      = $('testGithubButton');
+
+const configBox      = $('configBox');
+const githubStatusBox= $('githubStatusBox');
+const contextBox     = $('contextBox');
+const modelsBox      = $('modelsBox');
+const auditBox       = $('auditBox');
+const approvalsBox   = $('approvalsBox');
+const approvalCount  = $('approvalCount');
+
+const resizeHandle = $('resizeHandle');
+const chatPanel    = $('chatPanel');
+const logPanel     = $('logPanel');
+const workspace    = document.querySelector('.workspace');
+
+// ── State ──
+const TERMINAL_KEY = 'cb-terminal-v2';
+const COMMANDS_KEY = 'cb-commands-v1';
 let settingsHydrated = false;
 let terminalHistory = [];
+let predefinedCommands = [];
 
-function listToTextarea(value) {
-  return Array.isArray(value) ? value.join('\n') : '';
+// ── Helpers ──
+const toJson = (v) => JSON.stringify(v, null, 2);
+const listToText = (v) => (Array.isArray(v) ? v.join('\n') : '');
+
+// ══════════════════════════════════════════
+//  MENUS
+// ══════════════════════════════════════════
+function toggleMenu(btn, menu) {
+  const open = menu.classList.contains('hidden');
+  closeAllMenus();
+  if (open) { menu.classList.remove('hidden'); btn.classList.add('open'); }
+}
+function closeAllMenus() {
+  [fileMenu, viewMenu].forEach(m => m.classList.add('hidden'));
+  [fileMenuButton, viewMenuButton].forEach(b => b.classList.remove('open'));
 }
 
-function stringify(value) {
-  return JSON.stringify(value, null, 2);
+fileMenuButton.addEventListener('click', () => toggleMenu(fileMenuButton, fileMenu));
+viewMenuButton.addEventListener('click', () => toggleMenu(viewMenuButton, viewMenu));
+[fileMenuButton, fileMenu, viewMenuButton, viewMenu].forEach(el =>
+  el.addEventListener('mousedown', e => e.stopPropagation()));
+document.addEventListener('click', closeAllMenus);
+
+// ══════════════════════════════════════════
+//  MODALS
+// ══════════════════════════════════════════
+function openModal(modal, backdrop) {
+  closeAllMenus();
+  modal.classList.remove('hidden'); backdrop.classList.remove('hidden');
+  modal.setAttribute('aria-hidden', 'false');
+}
+function closeModal(modal, backdrop) {
+  modal.classList.add('hidden'); backdrop.classList.add('hidden');
+  modal.setAttribute('aria-hidden', 'true');
 }
 
-function setBadgeState(element, state, label) {
-  if (!element) {
-    return;
+openSettingsItem.addEventListener('click', () => openModal(settingsModal, settingsModalBackdrop));
+closeSettingsModalBtn.addEventListener('click', () => closeModal(settingsModal, settingsModalBackdrop));
+settingsModalBackdrop.addEventListener('click', () => closeModal(settingsModal, settingsModalBackdrop));
+
+authorizeGithubItem.addEventListener('click', () => {
+  openModal(settingsModal, settingsModalBackdrop);
+  testGithubButton.click();
+});
+
+openCommandsItem.addEventListener('click', () => openModal(commandsModal, commandsModalBackdrop));
+closeCommandsModalBtn.addEventListener('click', () => closeModal(commandsModal, commandsModalBackdrop));
+commandsModalBackdrop.addEventListener('click', () => closeModal(commandsModal, commandsModalBackdrop));
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    closeAllMenus();
+    closeModal(settingsModal, settingsModalBackdrop);
+    closeModal(commandsModal, commandsModalBackdrop);
   }
-  element.classList.remove('ok', 'warning', 'error', 'neutral');
-  element.classList.add(state);
-  element.textContent = label;
+});
+
+// ══════════════════════════════════════════
+//  TABS (Terminal / Output)
+// ══════════════════════════════════════════
+const panelTabs = document.querySelectorAll('.panel-tabs .tab[data-tab]');
+const tabBodies = { terminal: $('terminalTabBody'), output: $('outputTabBody') };
+
+function switchTab(name) {
+  panelTabs.forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+  Object.entries(tabBodies).forEach(([k, el]) => el.classList.toggle('hidden', k !== name));
 }
 
-function showFileMenu() {
-  fileMenu.classList.remove('hidden');
-  fileMenuButton.classList.add('open');
-  fileMenuButton.setAttribute('aria-expanded', 'true');
-}
+panelTabs.forEach(t => t.addEventListener('click', () => switchTab(t.dataset.tab)));
+document.querySelectorAll('[data-switch-tab]').forEach(el =>
+  el.addEventListener('click', () => { closeAllMenus(); switchTab(el.dataset.switchTab); }));
 
-function hideFileMenu() {
-  fileMenu.classList.add('hidden');
-  fileMenuButton.classList.remove('open');
-  fileMenuButton.setAttribute('aria-expanded', 'false');
-}
+// ══════════════════════════════════════════
+//  RESIZE HANDLE (drag to resize chat↔log)
+// ══════════════════════════════════════════
+let resizing = false;
+resizeHandle.addEventListener('mousedown', e => {
+  e.preventDefault(); resizing = true;
+  resizeHandle.classList.add('dragging');
+  document.body.style.cursor = 'row-resize';
+  document.body.style.userSelect = 'none';
+});
+document.addEventListener('mousemove', e => {
+  if (!resizing) return;
+  const rect = workspace.getBoundingClientRect();
+  const y = e.clientY - rect.top;
+  const total = rect.height;
+  const pct = Math.max(15, Math.min(85, (y / total) * 100));
+  workspace.style.gridTemplateRows = `${pct}% 4px 1fr`;
+});
+document.addEventListener('mouseup', () => {
+  if (!resizing) return;
+  resizing = false;
+  resizeHandle.classList.remove('dragging');
+  document.body.style.cursor = '';
+  document.body.style.userSelect = '';
+});
 
-function openSettingsModal() {
-  hideFileMenu();
-  settingsModal.classList.remove('hidden');
-  settingsModalBackdrop.classList.remove('hidden');
-  settingsModal.setAttribute('aria-hidden', 'false');
-}
-
-function closeSettingsModal() {
-  settingsModal.classList.add('hidden');
-  settingsModalBackdrop.classList.add('hidden');
-  settingsModal.setAttribute('aria-hidden', 'true');
-}
-
+// ══════════════════════════════════════════
+//  CHAT
+// ══════════════════════════════════════════
 function appendMessage(role, text) {
-  const element = document.createElement('article');
-  element.className = `message ${role}`;
+  const el = document.createElement('article');
+  el.className = `message ${role}`;
 
   const label = document.createElement('div');
-  label.className = 'message-label';
-  label.textContent = role === 'user' ? 'Ty' : 'Copilot Brain';
+  label.className = 'message-role';
+  if (role === 'user') {
+    label.innerHTML = '<span class="mdi mdi-account"></span> Ty';
+  } else {
+    label.innerHTML = '<span class="mdi mdi-robot-outline"></span> Copilot Brain';
+  }
 
   const body = document.createElement('div');
   body.className = 'message-body';
   body.textContent = text;
 
-  element.append(label, body);
-  chatLog.appendChild(element);
+  el.append(label, body);
+  chatLog.appendChild(el);
   chatLog.scrollTop = chatLog.scrollHeight;
 }
 
-function getTerminalPrefix(kind) {
-  switch (kind) {
-    case 'command':
-      return '$';
-    case 'error':
-      return '!';
-    case 'system':
-      return '#';
-    default:
-      return '›';
+chatForm.addEventListener('submit', async e => {
+  e.preventDefault();
+  const msg = messageInput.value.trim();
+  if (!msg) return;
+  appendMessage('user', msg);
+  messageInput.value = '';
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: msg }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error ?? 'Chat error');
+    appendMessage('assistant', data.reply);
+    await refresh();
+  } catch (err) {
+    appendMessage('assistant', `Błąd: ${err.message}`);
   }
+});
+
+// Ctrl+Enter to send
+messageInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.ctrlKey) { e.preventDefault(); chatForm.requestSubmit(); }
+});
+
+// ══════════════════════════════════════════
+//  TERMINAL
+// ══════════════════════════════════════════
+function getPrefix(kind) {
+  return kind === 'command' ? '$' : kind === 'error' ? '!' : kind === 'system' ? '#' : '›';
 }
 
-function persistTerminalHistory() {
-  sessionStorage.setItem(terminalHistoryKey, JSON.stringify(terminalHistory.slice(-200)));
+function persistTerminal() {
+  sessionStorage.setItem(TERMINAL_KEY, JSON.stringify(terminalHistory.slice(-300)));
 }
-
-function renderTerminalHistory() {
+function renderTerminal() {
   terminalLog.innerHTML = '';
-
-  for (const entry of terminalHistory) {
+  for (const e of terminalHistory) {
     const line = document.createElement('div');
-    line.className = `terminal-line ${entry.kind}`;
-
-    const prefix = document.createElement('span');
-    prefix.className = 'terminal-prefix';
-    prefix.textContent = getTerminalPrefix(entry.kind);
-
-    const body = document.createElement('div');
-    body.className = 'terminal-body';
-    body.textContent = entry.text;
-
-    line.append(prefix, body);
+    line.className = `terminal-line ${e.kind}`;
+    const pfx = document.createElement('span'); pfx.className = 'terminal-prefix'; pfx.textContent = getPrefix(e.kind);
+    const body = document.createElement('div'); body.className = 'terminal-body'; body.textContent = e.text;
+    line.append(pfx, body);
     terminalLog.appendChild(line);
   }
-
   terminalLog.scrollTop = terminalLog.scrollHeight;
 }
-
-function appendTerminalLine(kind, text) {
+function termLine(kind, text) {
   terminalHistory.push({ kind, text, at: new Date().toISOString() });
-  persistTerminalHistory();
-  renderTerminalHistory();
+  persistTerminal(); renderTerminal();
+}
+function clearTerminal(msg) {
+  terminalHistory = []; persistTerminal(); renderTerminal();
+  if (msg) termLine('system', msg);
 }
 
-function clearTerminalHistory(message) {
-  terminalHistory = [];
-  persistTerminalHistory();
-  renderTerminalHistory();
-  if (message) {
-    appendTerminalLine('system', message);
+terminalClearBtn.addEventListener('click', () => { clearTerminal('Console cleared.'); terminalInput.focus(); });
+
+terminalForm.addEventListener('submit', async e => {
+  e.preventDefault();
+  const cmd = terminalInput.value.trim();
+  if (!cmd) return;
+  termLine('command', cmd);
+  terminalInput.value = '';
+  try {
+    const res = await fetch('/api/terminal/execute', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ command: cmd }),
+    });
+    const data = await res.json();
+    if (data.clear) { clearTerminal(data.output); }
+    else { termLine(data.ok ? 'output' : 'error', data.output ?? 'No output.'); }
+    if (res.ok) await refresh();
+  } catch (err) {
+    termLine('error', err.message);
+  }
+});
+
+// ══════════════════════════════════════════
+//  OUTPUT LOG (secondary panel)
+// ══════════════════════════════════════════
+function appendOutput(text) {
+  const line = document.createElement('div');
+  line.className = 'terminal-line output';
+  const pfx = document.createElement('span'); pfx.className = 'terminal-prefix'; pfx.textContent = '›';
+  const body = document.createElement('div'); body.className = 'terminal-body'; body.textContent = text;
+  line.append(pfx, body);
+  outputLog.appendChild(line);
+  outputLog.scrollTop = outputLog.scrollHeight;
+}
+
+// ══════════════════════════════════════════
+//  PREDEFINED COMMANDS
+// ══════════════════════════════════════════
+function loadCommands() {
+  try { predefinedCommands = JSON.parse(localStorage.getItem(COMMANDS_KEY) || '[]'); } catch { predefinedCommands = []; }
+}
+function saveCommands() {
+  localStorage.setItem(COMMANDS_KEY, JSON.stringify(predefinedCommands));
+}
+function renderCommands() {
+  commandsList.innerHTML = '';
+  if (!predefinedCommands.length) {
+    commandsList.innerHTML = '<p class="muted-text">Brak zdefiniowanych komend.</p>';
+    return;
+  }
+  for (const cmd of predefinedCommands) {
+    const card = document.createElement('div'); card.className = 'command-card';
+    card.innerHTML = `
+      <span class="mdi ${cmd.icon || 'mdi-lightning-bolt-outline'}"></span>
+      <div class="command-card-info">
+        <div class="command-card-name">${esc(cmd.name)}</div>
+        <div class="command-card-prompt">${esc(cmd.prompt)}</div>
+      </div>
+      <button type="button" class="command-card-del" title="Usuń"><span class="mdi mdi-delete-outline"></span></button>
+    `;
+    card.querySelector('.command-card-info').addEventListener('click', () => executeCommand(cmd));
+    card.querySelector('.command-card-del').addEventListener('click', e => {
+      e.stopPropagation();
+      predefinedCommands = predefinedCommands.filter(c => c.id !== cmd.id);
+      saveCommands(); renderCommands();
+    });
+    commandsList.appendChild(card);
+  }
+}
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+async function executeCommand(cmd) {
+  closeModal(commandsModal, commandsModalBackdrop);
+  appendMessage('user', `⚡ ${cmd.name}`);
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: cmd.prompt }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error ?? 'Command error');
+    appendMessage('assistant', data.reply);
+    appendOutput(`[${cmd.name}] ${data.reply.slice(0, 500)}`);
+    await refresh();
+  } catch (err) {
+    appendMessage('assistant', `Błąd komendy: ${err.message}`);
   }
 }
 
-function hydrateSettings(settings) {
-  githubModelInput.value = settings.effectiveConfig.githubModelsDefaultModel ?? '';
-  approvalModeInput.value = settings.effectiveConfig.approvalMode ?? 'explicit';
-  githubAppIdInput.value = settings.effectiveConfig.githubAppId ?? '';
-  githubInstallationIdInput.value = settings.effectiveConfig.githubAppInstallationId ?? '';
-  entityAllowlistInput.value = listToTextarea(settings.effectiveConfig.entityAllowlist);
-  serviceAllowlistInput.value = listToTextarea(settings.effectiveConfig.serviceAllowlist);
-  addonAllowlistInput.value = listToTextarea(settings.effectiveConfig.addonAllowlist);
-  systemPromptInput.value = settings.effectiveConfig.systemPromptTemplate ?? '';
+addCommandForm.addEventListener('submit', e => {
+  e.preventDefault();
+  const name = $('cmdNameInput').value.trim();
+  const icon = $('cmdIconInput').value.trim() || 'mdi-lightning-bolt-outline';
+  const prompt = $('cmdPromptInput').value.trim();
+  if (!name || !prompt) return;
+  predefinedCommands.push({ id: Date.now().toString(36), name, icon, prompt });
+  saveCommands(); renderCommands();
+  addCommandForm.reset();
+});
+
+// ══════════════════════════════════════════
+//  STATUS BAR HELPERS
+// ══════════════════════════════════════════
+function setSbStatus(el, ok, label) { if (el) el.textContent = label; }
+
+// ══════════════════════════════════════════
+//  SETTINGS FORM
+// ══════════════════════════════════════════
+function hydrateSettings(s) {
+  githubModelInput.value = s.effectiveConfig.githubModelsDefaultModel ?? '';
+  approvalModeInput.value = s.effectiveConfig.approvalMode ?? 'explicit';
+  githubAppIdInput.value = s.effectiveConfig.githubAppId ?? '';
+  githubInstallationIdInput.value = s.effectiveConfig.githubAppInstallationId ?? '';
+  entityAllowlistInput.value = listToText(s.effectiveConfig.entityAllowlist);
+  serviceAllowlistInput.value = listToText(s.effectiveConfig.serviceAllowlist);
+  addonAllowlistInput.value = listToText(s.effectiveConfig.addonAllowlist);
+  systemPromptInput.value = s.effectiveConfig.systemPromptTemplate ?? '';
   settingsHydrated = true;
 }
 
 function renderApprovals(entries) {
   approvalCount.textContent = String(entries.length);
-
-  if (!entries.length) {
-    approvalsBox.textContent = 'Brak oczekujących zatwierdzeń.';
-    return;
-  }
-
+  if (!entries.length) { approvalsBox.textContent = 'Brak oczekujących.'; return; }
   approvalsBox.innerHTML = '';
-
-  for (const entry of entries) {
-    const wrapper = document.createElement('article');
-    wrapper.className = 'approval-item';
-
-    const title = document.createElement('h3');
-    title.textContent = entry.summary;
-
-    const meta = document.createElement('div');
-    meta.className = 'approval-meta';
-    meta.textContent = `${entry.id} · ${entry.status} · ${new Date(entry.createdAt).toLocaleString()}`;
-
-    const payload = document.createElement('pre');
-    payload.textContent = stringify(entry.payload);
-
-    wrapper.append(title, meta, payload);
-
-    if (entry.status === 'pending') {
-      const actions = document.createElement('div');
-      actions.className = 'approval-actions';
-
-      const approveButton = document.createElement('button');
-      approveButton.type = 'button';
-      approveButton.textContent = 'Approve';
-      approveButton.addEventListener('click', async () => {
-        const response = await fetch(`/api/approvals/${entry.id}/approve`, { method: 'POST' });
-        const body = await response.json();
-        if (!response.ok) {
-          appendTerminalLine('error', body.error ?? `Approval ${entry.id} failed.`);
-          return;
-        }
-
-        appendTerminalLine('system', `Approval ${entry.id} approved.`);
-        await refresh();
+  for (const e of entries) {
+    const w = document.createElement('article'); w.className = 'approval-item';
+    w.innerHTML = `<h3>${esc(e.summary)}</h3>
+      <div class="approval-meta">${esc(e.id)} · ${e.status} · ${new Date(e.createdAt).toLocaleString()}</div>
+      <pre>${esc(toJson(e.payload))}</pre>`;
+    if (e.status === 'pending') {
+      const acts = document.createElement('div'); acts.className = 'approval-actions';
+      const ab = document.createElement('button'); ab.textContent = 'Approve';
+      ab.addEventListener('click', async () => {
+        await fetch(`/api/approvals/${e.id}/approve`, { method: 'POST' });
+        termLine('system', `Approved ${e.id}`); await refresh();
       });
-
-      const rejectButton = document.createElement('button');
-      rejectButton.type = 'button';
-      rejectButton.className = 'reject';
-      rejectButton.textContent = 'Reject';
-      rejectButton.addEventListener('click', async () => {
-        const response = await fetch(`/api/approvals/${entry.id}/reject`, { method: 'POST' });
-        const body = await response.json();
-        if (!response.ok) {
-          appendTerminalLine('error', body.error ?? `Reject ${entry.id} failed.`);
-          return;
-        }
-
-        appendTerminalLine('system', `Approval ${entry.id} rejected.`);
-        await refresh();
+      const rb = document.createElement('button'); rb.textContent = 'Reject'; rb.className = 'reject';
+      rb.addEventListener('click', async () => {
+        await fetch(`/api/approvals/${e.id}/reject`, { method: 'POST' });
+        termLine('system', `Rejected ${e.id}`); await refresh();
       });
-
-      actions.append(approveButton, rejectButton);
-      wrapper.appendChild(actions);
+      acts.append(ab, rb); w.appendChild(acts);
     }
-
-    approvalsBox.appendChild(wrapper);
+    approvalsBox.appendChild(w);
   }
 }
 
-async function loadJson(url) {
-  const response = await fetch(url);
-  if (!response.ok) {
-    let message = `Request failed for ${url}: ${response.status}`;
-    try {
-      const body = await response.json();
-      if (body?.error) {
-        message = body.error;
-      }
-    } catch {
-      // ignore parse failures
-    }
-    throw new Error(message);
-  }
-
-  return response.json();
-}
-
-async function loadJsonResult(url) {
-  try {
-    return { ok: true, data: await loadJson(url) };
-  } catch (error) {
-    return { ok: false, error: error instanceof Error ? error.message : String(error) };
-  }
-}
-
-async function refresh(options = {}) {
-  const { forceSettings = false } = options;
-
-  const [healthResult, configResult, githubResult, settingsResult, contextResult, modelsResult, auditResult, approvalsResult] =
-    await Promise.all([
-      loadJsonResult('/api/health'),
-      loadJsonResult('/api/config'),
-      loadJsonResult('/api/github/status'),
-      loadJsonResult('/api/settings'),
-      loadJsonResult('/api/context'),
-      loadJsonResult('/api/models'),
-      loadJsonResult('/api/audit'),
-      loadJsonResult('/api/approvals'),
-    ]);
-
-  if (healthResult.ok) {
-    const health = healthResult.data;
-    setBadgeState(serviceBadge, 'ok', `${health.service} online`);
-    healthText.textContent = `${health.service} ${health.version} · ${health.stage} · ${new Date(health.time).toLocaleString()}`;
-    versionChip.textContent = `v${health.version} · ${health.stage}`;
-    document.title = `Copilot Brain ${health.version}`;
-  } else {
-    setBadgeState(serviceBadge, 'error', 'Service error');
-    healthText.textContent = healthResult.error;
-  }
-
-  if (configResult.ok) {
-    const config = configResult.data;
-    configBox.textContent = stringify(config);
-    setBadgeState(haStatusBadge, config.haLive ? 'ok' : 'warning', config.haLive ? 'HA live' : 'HA mock mode');
-  } else {
-    configBox.textContent = configResult.error;
-    setBadgeState(haStatusBadge, 'error', 'HA unavailable');
-  }
-
-  if (githubResult.ok) {
-    const githubStatus = githubResult.data;
-    githubStatusBox.textContent = stringify(githubStatus);
-
-    if (githubStatus.ok) {
-      setBadgeState(githubStatusBadge, 'ok', 'GitHub connected');
-    } else if (githubStatus.configured) {
-      setBadgeState(githubStatusBadge, 'error', 'GitHub failing');
-    } else {
-      setBadgeState(githubStatusBadge, 'warning', 'GitHub not configured');
-    }
-  } else {
-    githubStatusBox.textContent = githubResult.error;
-    setBadgeState(githubStatusBadge, 'error', 'GitHub status error');
-  }
-
-  if (settingsResult.ok && (!settingsHydrated || forceSettings)) {
-    hydrateSettings(settingsResult.data);
-  }
-
-  if (contextResult.ok) {
-    const context = contextResult.data;
-    contextBox.textContent = [context.entitiesSummary, '', context.addonsSummary].join('\n');
-  } else {
-    contextBox.textContent = contextResult.error;
-  }
-
-  modelsBox.textContent = modelsResult.ok ? stringify(modelsResult.data) : modelsResult.error;
-  auditBox.textContent = auditResult.ok ? stringify(auditResult.data.entries) : auditResult.error;
-
-  if (approvalsResult.ok) {
-    renderApprovals(approvalsResult.data.entries);
-  } else {
-    approvalsBox.textContent = approvalsResult.error;
-    approvalCount.textContent = '!';
-  }
-}
-
-for (const button of quickCommandButtons) {
-  button.addEventListener('click', () => {
-    terminalInput.value = button.dataset.terminalCommand ?? '';
-    terminalInput.focus();
-  });
-}
-
-fileMenuButton.addEventListener('click', () => {
-  if (fileMenu.classList.contains('hidden')) {
-    showFileMenu();
-  } else {
-    hideFileMenu();
-  }
-});
-
-fileMenuButton.addEventListener('mousedown', (event) => {
-  event.stopPropagation();
-});
-
-fileMenu.addEventListener('mousedown', (event) => {
-  event.stopPropagation();
-});
-
-openSettingsMenuItem.addEventListener('click', () => {
-  openSettingsModal();
-});
-
-authorizeGithubMenuItem.addEventListener('click', async () => {
-  openSettingsModal();
-  try {
-    testGithubButton.click();
-  } catch {
-    // no-op
-  }
-});
-
-closeSettingsModalButton.addEventListener('click', closeSettingsModal);
-settingsModalBackdrop.addEventListener('click', closeSettingsModal);
-
-document.addEventListener('click', (event) => {
-  if (!fileMenu.contains(event.target) && !fileMenuButton.contains(event.target)) {
-    hideFileMenu();
-  }
-});
-
-document.addEventListener('keydown', (event) => {
-  if (event.key === 'Escape') {
-    hideFileMenu();
-    closeSettingsModal();
-  }
-});
-
-testGithubButton.addEventListener('click', async () => {
-  try {
-    testGithubButton.disabled = true;
-    const response = await fetch('/api/github/test-auth', { method: 'POST' });
-    const body = await response.json();
-    if (!response.ok) {
-      throw new Error(body.error ?? 'Unknown GitHub auth error');
-    }
-
-    appendMessage(
-      'assistant',
-      `GitHub auth test OK. Token issued: ${body.installationTokenIssued ? 'yes' : 'no'}. Visible models: ${body.modelAccess?.modelCount ?? 0}.`,
-    );
-    appendTerminalLine('system', 'GitHub auth test completed successfully.');
-    await refresh();
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    appendMessage('assistant', `GitHub auth test failed: ${message}`);
-    appendTerminalLine('error', `GitHub auth test failed: ${message}`);
-    setBadgeState(githubStatusBadge, 'error', 'GitHub failing');
-  } finally {
-    testGithubButton.disabled = false;
-  }
-});
-
-settingsForm.addEventListener('submit', async (event) => {
-  event.preventDefault();
-
+settingsForm.addEventListener('submit', async e => {
+  e.preventDefault();
   const payload = {
     github_model: githubModelInput.value.trim(),
     approval_mode: approvalModeInput.value,
@@ -432,125 +410,130 @@ settingsForm.addEventListener('submit', async (event) => {
     addon_allowlist: addonAllowlistInput.value,
     system_prompt_template: systemPromptInput.value,
   };
-
   try {
-    const response = await fetch('/api/settings', {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+    const res = await fetch('/api/settings', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
-
-    const body = await response.json();
-    if (!response.ok) {
-      throw new Error(body.error ?? 'Unknown settings error');
-    }
-
-    appendMessage('assistant', 'Ustawienia zostały zapisane.');
-    appendTerminalLine('system', 'Runtime settings updated.');
-    mcpTokenInput.value = '';
-    githubPrivateKeyInput.value = '';
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error ?? 'Settings error');
+    appendMessage('assistant', 'Ustawienia zapisane.');
+    termLine('system', 'Runtime settings updated.');
+    mcpTokenInput.value = ''; githubPrivateKeyInput.value = '';
     settingsHydrated = false;
     await refresh({ forceSettings: true });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    appendMessage('assistant', `Błąd zapisu ustawień: ${message}`);
-    appendTerminalLine('error', `Settings update failed: ${message}`);
+  } catch (err) {
+    appendMessage('assistant', `Błąd zapisu: ${err.message}`);
   }
 });
 
-chatForm.addEventListener('submit', async (event) => {
-  event.preventDefault();
-  const message = messageInput.value.trim();
-  if (!message) {
-    return;
-  }
-
-  appendMessage('user', message);
-  messageInput.value = '';
-
+testGithubButton.addEventListener('click', async () => {
   try {
-    const response = await fetch('/api/chat', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ message }),
-    });
-
-    const payload = await response.json();
-    if (!response.ok) {
-      throw new Error(payload.error ?? 'Unknown chat error');
-    }
-
-    appendMessage('assistant', payload.reply);
+    testGithubButton.disabled = true;
+    const res = await fetch('/api/github/test-auth', { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error ?? 'Auth error');
+    appendMessage('assistant',
+      `GitHub auth OK. Token: ${data.installationTokenIssued ? 'yes' : 'no'}. Models: ${data.modelAccess?.modelCount ?? 0}.`);
+    termLine('system', 'GitHub auth test OK.');
     await refresh();
-  } catch (error) {
-    appendMessage('assistant', `Błąd: ${error instanceof Error ? error.message : String(error)}`);
-  }
+  } catch (err) {
+    appendMessage('assistant', `GitHub auth failed: ${err.message}`);
+    termLine('error', `GitHub auth: ${err.message}`);
+  } finally { testGithubButton.disabled = false; }
 });
 
-terminalForm.addEventListener('submit', async (event) => {
-  event.preventDefault();
-  const command = terminalInput.value.trim();
-  if (!command) {
-    return;
-  }
-
-  appendTerminalLine('command', command);
-  terminalInput.value = '';
-
-  try {
-    const response = await fetch('/api/terminal/execute', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ command }),
-    });
-
-    const payload = await response.json();
-    if (payload.clear) {
-      clearTerminalHistory(payload.output);
-    } else {
-      appendTerminalLine(payload.ok ? 'output' : 'error', payload.output ?? 'No output.');
-    }
-
-    if (!response.ok && !payload.ok) {
-      return;
-    }
-
-    await refresh();
-  } catch (error) {
-    appendTerminalLine('error', error instanceof Error ? error.message : String(error));
-  }
-});
-
-terminalClearButton.addEventListener('click', () => {
-  clearTerminalHistory('Console cleared locally.');
-  terminalInput.focus();
-});
-
-try {
-  terminalHistory = JSON.parse(sessionStorage.getItem(terminalHistoryKey) ?? '[]');
-  if (!Array.isArray(terminalHistory)) {
-    terminalHistory = [];
-  }
-} catch {
-  terminalHistory = [];
+// ══════════════════════════════════════════
+//  DATA REFRESH
+// ══════════════════════════════════════════
+async function loadJson(url) {
+  const r = await fetch(url);
+  if (!r.ok) { const b = await r.json().catch(() => ({})); throw new Error(b.error || `${url}: ${r.status}`); }
+  return r.json();
 }
+async function tryLoad(url) {
+  try { return { ok: true, data: await loadJson(url) }; }
+  catch (e) { return { ok: false, error: e.message }; }
+}
+
+async function refresh(opts = {}) {
+  const { forceSettings = false } = opts;
+  const [health, config, github, settings, context, models, audit, approvals] = await Promise.all([
+    tryLoad('/api/health'), tryLoad('/api/config'), tryLoad('/api/github/status'),
+    tryLoad('/api/settings'), tryLoad('/api/context'), tryLoad('/api/models'),
+    tryLoad('/api/audit'), tryLoad('/api/approvals'),
+  ]);
+
+  // Health / version
+  if (health.ok) {
+    const h = health.data;
+    healthText.textContent = `${h.service} ${h.version} · ${h.stage}`;
+    versionLabel.textContent = `v${h.version}`;
+    document.title = `Copilot Brain ${h.version}`;
+  } else {
+    healthText.textContent = health.error;
+  }
+
+  // HA status
+  if (config.ok) {
+    configBox.textContent = toJson(config.data);
+    setSbStatus(haStatusLabel, config.data.haLive, config.data.haLive ? 'HA live' : 'HA mock');
+  } else {
+    configBox.textContent = config.error;
+    setSbStatus(haStatusLabel, false, 'HA err');
+  }
+
+  // GitHub
+  if (github.ok) {
+    githubStatusBox.textContent = toJson(github.data);
+    setSbStatus(githubStatusLabel, github.data.ok, github.data.ok ? 'connected' : github.data.configured ? 'failing' : 'not configured');
+  } else {
+    githubStatusBox.textContent = github.error;
+    setSbStatus(githubStatusLabel, false, 'error');
+  }
+
+  // Settings
+  if (settings.ok && (!settingsHydrated || forceSettings)) hydrateSettings(settings.data);
+
+  // Model label
+  if (settings.ok) modelLabel.textContent = settings.data.effectiveConfig.githubModelsDefaultModel ?? '—';
+
+  // Context
+  if (context.ok) {
+    const c = context.data;
+    contextBox.textContent = [c.entitiesSummary, '', c.addonsSummary].join('\n');
+  } else { contextBox.textContent = context.error; }
+
+  modelsBox.textContent = models.ok ? toJson(models.data) : models.error;
+  auditBox.textContent = audit.ok ? toJson(audit.data.entries) : audit.error;
+
+  if (approvals.ok) renderApprovals(approvals.data.entries);
+  else { approvalsBox.textContent = approvals.error; approvalCount.textContent = '!'; }
+
+  // Statusbar color
+  const allOk = health.ok && config.ok;
+  statusbar.classList.remove('error', 'warning');
+  if (!allOk) statusbar.classList.add('warning');
+}
+
+// ══════════════════════════════════════════
+//  BOOT
+// ══════════════════════════════════════════
+try {
+  terminalHistory = JSON.parse(sessionStorage.getItem(TERMINAL_KEY) ?? '[]');
+  if (!Array.isArray(terminalHistory)) terminalHistory = [];
+} catch { terminalHistory = []; }
 
 if (terminalHistory.length === 0) {
-  appendTerminalLine('system', 'Copilot Brain terminal ready. Run help to see supported commands.');
-  appendTerminalLine('system', 'This is a guarded HA console, not a raw shell. Tiny difference, gigantic security benefit.');
-} else {
-  renderTerminalHistory();
-}
+  termLine('system', 'Copilot Brain terminal ready. Type help for commands.');
+  termLine('system', 'Guarded HA console — system, host, entities, logs, containers…');
+} else { renderTerminal(); }
 
-appendMessage(
-  'assistant',
-  'Witaj w Copilot Brain 0.2.1. U góry masz czat, na dole terminal, a ustawienia i autoryzację SDK znajdziesz w File.',
-);
+loadCommands();
+renderCommands();
+
+appendMessage('assistant',
+  'Witaj w Copilot Brain 0.3.0.\nChat u góry, terminal na dole. Przeciągnij pasek aby zmienić proporcje.\nFile → Settings / Predefined Commands.');
 
 refresh({ forceSettings: true });
+setInterval(() => refresh(), 30000);
