@@ -1,5 +1,5 @@
 name: Copilot Brain
-version: "0.3.1"
+version: "0.3.2"
 slug: copilot_brain
 description: >-
   Experimental GitHub-powered AI control plane for Home Assistant with chat, HA terminal, and MCP endpoint.
@@ -18,6 +18,9 @@ panel_title: Copilot Brain
 panel_icon: mdi:robot-excited
 homeassistant_api: true
 hassio_api: true
+hassio_role: manager
+auth_api: true
+host_network: true
 map:
   - type: addon_config
     read_only: false

@@ -3,6 +3,11 @@
 All notable changes to the **Copilot Brain** Home Assistant add-on are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic Versioning](https://semver.org/).
 
+## [0.3.2] — 2026-04-06
+
+### Changed
+- Wyłączenie trybu chronionego: dodano `hassio_role: manager`, `auth_api: true`, `host_network: true` — pełny dostęp do Supervisor API i sieci hosta.
+
 ## [0.3.1] — 2026-04-06
 
 ### Fixed
