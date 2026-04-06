@@ -3,6 +3,19 @@
 All notable changes to the **Copilot Brain** Home Assistant add-on are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic Versioning](https://semver.org/).
 
+## [0.3.1] — 2026-04-06
+
+### Fixed
+- Chat orchestrator null safety — tool lookup now returns proper error instead of crashing.
+- MCP server fallback version updated from 0.2.1 to 0.3.0.
+
+### Changed
+- Default `service_allowlist` widened to include climate, cover, fan, media_player, automation, and input_boolean services.
+- DOCS.md fully rewritten for v0.3.0 layout — documents terminal tabs, resize handle, predefined commands, all system commands.
+
+### Added
+- `icon.png` and `logo.png` for Home Assistant add-on store display.
+
 ## [0.3.0] — 2026-04-06
 
 ### Added

@@ -31,7 +31,8 @@ export class ChatOrchestrator {
 
     if (trimmed === "/entities") {
       const tool = this.toolIndex.get("ha.list_entities");
-      const result = await tool?.execute({});
+      if (!tool) return { reply: "Tool ha.list_entities is not available.", mode: "local" };
+      const result = await tool.execute({});
       return {
         reply: JSON.stringify(result, null, 2),
         mode: "tool",
@@ -41,7 +42,8 @@ export class ChatOrchestrator {
     if (trimmed.startsWith("/entity ")) {
       const entityId = trimmed.slice(8).trim();
       const tool = this.toolIndex.get("ha.get_entity");
-      const result = await tool?.execute({ entity_id: entityId });
+      if (!tool) return { reply: "Tool ha.get_entity is not available.", mode: "local" };
+      const result = await tool.execute({ entity_id: entityId });
       return {
         reply: JSON.stringify(result, null, 2),
         mode: "tool",
@@ -51,7 +53,8 @@ export class ChatOrchestrator {
     if (trimmed.startsWith("/service ")) {
       const [, service, entityId] = trimmed.split(/\s+/, 3);
       const tool = this.toolIndex.get("ha.call_service");
-      const result = await tool?.execute({ service, entity_id: entityId });
+      if (!tool) return { reply: "Tool ha.call_service is not available.", mode: "local" };
+      const result = await tool.execute({ service, entity_id: entityId });
       const parsedResult = result as { status?: string; approvalId?: string; summary?: string } | undefined;
       if (parsedResult?.status === "pending_approval") {
         return {

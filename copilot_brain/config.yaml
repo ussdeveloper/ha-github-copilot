@@ -1,5 +1,5 @@
 name: Copilot Brain
-version: "0.3.0"
+version: "0.3.1"
 slug: copilot_brain
 description: >-
   Experimental GitHub-powered AI control plane for Home Assistant with chat, HA terminal, and MCP endpoint.
@@ -43,6 +43,27 @@ options:
     - switch.toggle
     - script.turn_on
     - scene.turn_on
+    - climate.set_temperature
+    - climate.set_hvac_mode
+    - climate.turn_on
+    - climate.turn_off
+    - cover.open_cover
+    - cover.close_cover
+    - cover.stop_cover
+    - fan.turn_on
+    - fan.turn_off
+    - fan.toggle
+    - media_player.turn_on
+    - media_player.turn_off
+    - media_player.media_play
+    - media_player.media_pause
+    - media_player.volume_set
+    - automation.turn_on
+    - automation.turn_off
+    - automation.trigger
+    - input_boolean.turn_on
+    - input_boolean.turn_off
+    - input_boolean.toggle
   addon_allowlist: []
 schema:
   github_app_id: str?
