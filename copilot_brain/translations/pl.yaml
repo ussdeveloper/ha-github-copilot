@@ -8,6 +8,9 @@ configuration:
   github_app_private_key:
     name: Klucz prywatny GitHub App
     description: Klucz PEM aplikacji zakodowany jako base64
+  github_client_id:
+    name: GitHub Client ID
+    description: Client ID aplikacji GitHub App/OAuth App do autoryzacji Device Flow
   github_model:
     name: Model GitHub
     description: Identyfikator modelu używany do czatu

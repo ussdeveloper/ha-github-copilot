@@ -21,7 +21,7 @@ import { createMcpRouter } from './mcp/server.js';
 import { ChatOrchestrator } from './chat/orchestrator.js';
 import { summarizeAddons, summarizeStates } from './prompt/template.js';
 
-const APP_VERSION = '0.3.2';
+const APP_VERSION = '0.3.3';
 const APP_STAGE = 'experimental';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -50,6 +50,7 @@ function toSettingsPayload(body: Record<string, unknown>): SettingsInput {
       typeof body.github_app_installation_id === 'string' ? body.github_app_installation_id : undefined,
     github_app_private_key:
       typeof body.github_app_private_key === 'string' ? body.github_app_private_key : undefined,
+    github_client_id: typeof body.github_client_id === 'string' ? body.github_client_id : undefined,
     github_model: typeof body.github_model === 'string' ? body.github_model : undefined,
     mcp_auth_token: typeof body.mcp_auth_token === 'string' ? body.mcp_auth_token : undefined,
     approval_mode:
@@ -68,7 +69,14 @@ function toSettingsPayload(body: Record<string, unknown>): SettingsInput {
 function createRuntime(audit: AuditStore, approvals: ApprovalStore) {
   const config = loadAppConfig();
   const auth = new GitHubAppAuth(config);
-  const models = new GitHubModelsClient(() => auth.getInstallationToken());
+  const models = new GitHubModelsClient(async () => {
+    // 1. Try GitHub App installation token (server-to-server)
+    const installationToken = await auth.getInstallationToken();
+    if (installationToken) return installationToken;
+    // 2. Fall back to OAuth user token
+    if (config.githubOauthToken) return config.githubOauthToken;
+    return null;
+  });
   const ha = new SupervisorClient(config);
   const tools = [
     ...createHomeAssistantTools(config, ha, audit, approvals),
@@ -615,6 +623,138 @@ async function bootstrap() {
       const message = error instanceof Error ? error.message : 'Unknown error';
       audit.add('error', 'GitHub App auth test failed', { message });
       response.status(500).json({ ok: false, error: message });
+    }
+  });
+
+  // ── GitHub OAuth Device Flow ──
+  let activeDeviceFlow: {
+    deviceCode: string;
+    userCode: string;
+    verificationUri: string;
+    expiresAt: number;
+    interval: number;
+  } | null = null;
+
+  app.post('/api/auth/github/device-code', async (_request, response) => {
+    try {
+      const clientId = runtime.config.githubClientId;
+      if (!clientId) {
+        return response.status(400).json({
+          ok: false,
+          error: 'github_client_id is not configured. Set it in add-on options or Settings.',
+        });
+      }
+
+      const ghResponse = await fetch('https://github.com/login/device/code', {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ client_id: clientId }),
+      });
+
+      if (!ghResponse.ok) {
+        const text = await ghResponse.text();
+        throw new Error(`GitHub device code request failed: ${ghResponse.status} ${text}`);
+      }
+
+      const data = (await ghResponse.json()) as {
+        device_code: string;
+        user_code: string;
+        verification_uri: string;
+        expires_in: number;
+        interval: number;
+      };
+
+      activeDeviceFlow = {
+        deviceCode: data.device_code,
+        userCode: data.user_code,
+        verificationUri: data.verification_uri,
+        expiresAt: Date.now() + data.expires_in * 1000,
+        interval: data.interval,
+      };
+
+      audit.add('tool_call', 'Initiated GitHub OAuth device flow', { userCode: data.user_code });
+      response.json({
+        ok: true,
+        userCode: data.user_code,
+        verificationUri: data.verification_uri,
+        expiresIn: data.expires_in,
+        interval: data.interval,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      audit.add('error', 'GitHub device flow initiation failed', { message });
+      response.status(500).json({ ok: false, error: message });
+    }
+  });
+
+  app.post('/api/auth/github/device-poll', async (_request, response) => {
+    try {
+      if (!activeDeviceFlow) {
+        return response.status(400).json({ ok: false, status: 'no_flow', error: 'No active device flow. Start one first.' });
+      }
+
+      if (Date.now() > activeDeviceFlow.expiresAt) {
+        activeDeviceFlow = null;
+        return response.json({ ok: false, status: 'expired', error: 'Device code expired. Start a new flow.' });
+      }
+
+      const clientId = runtime.config.githubClientId;
+      const ghResponse = await fetch('https://github.com/login/oauth/access_token', {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          client_id: clientId,
+          device_code: activeDeviceFlow.deviceCode,
+          grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
+        }),
+      });
+
+      if (!ghResponse.ok) {
+        const text = await ghResponse.text();
+        throw new Error(`GitHub token poll failed: ${ghResponse.status} ${text}`);
+      }
+
+      const data = (await ghResponse.json()) as {
+        access_token?: string;
+        token_type?: string;
+        error?: string;
+        error_description?: string;
+      };
+
+      if (data.error === 'authorization_pending') {
+        return response.json({ ok: false, status: 'pending' });
+      }
+
+      if (data.error === 'slow_down') {
+        if (activeDeviceFlow) activeDeviceFlow.interval += 5;
+        return response.json({ ok: false, status: 'slow_down', interval: activeDeviceFlow?.interval });
+      }
+
+      if (data.error) {
+        activeDeviceFlow = null;
+        return response.json({ ok: false, status: 'error', error: data.error_description ?? data.error });
+      }
+
+      if (data.access_token) {
+        // Save the OAuth token
+        saveOptionsJson({ github_oauth_token: data.access_token });
+        rebuildRuntime();
+        activeDeviceFlow = null;
+        audit.add('tool_call', 'GitHub OAuth authorization completed successfully', {});
+        return response.json({ ok: true, status: 'complete' });
+      }
+
+      return response.json({ ok: false, status: 'unknown', error: 'Unexpected response from GitHub.' });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      audit.add('error', 'GitHub device flow poll failed', { message });
+      response.status(500).json({ ok: false, status: 'error', error: message });
     }
   });
 

@@ -14,6 +14,8 @@ const appConfigSchema = z.object({
   githubAppId: z.string().default(""),
   githubAppInstallationId: z.string().default(""),
   githubAppPrivateKeyBase64: z.string().default(""),
+  githubClientId: z.string().default(""),
+  githubOauthToken: z.string().default(""),
   githubModelsDefaultModel: z.string().default("openai/gpt-4.1"),
   mcpAuthToken: z.string().default("change-me"),
   systemPromptTemplate: z.string().default(
@@ -33,6 +35,8 @@ type PartialOptions = Partial<{
   github_app_id: string;
   github_app_installation_id: string;
   github_app_private_key: string;
+  github_client_id: string;
+  github_oauth_token: string;
   github_model: string;
   mcp_auth_token: string;
   approval_mode: "explicit" | "read-only";
@@ -46,6 +50,8 @@ export type SettingsInput = Partial<{
   github_app_id: string;
   github_app_installation_id: string;
   github_app_private_key: string;
+  github_client_id: string;
+  github_oauth_token: string;
   github_model: string;
   mcp_auth_token: string;
   approval_mode: "explicit" | "read-only";
@@ -115,6 +121,10 @@ export function saveOptionsJson(input: SettingsInput): PartialOptions {
     merged.mcp_auth_token = current.mcp_auth_token ?? "";
   }
 
+  if (input.github_oauth_token === "") {
+    merged.github_oauth_token = current.github_oauth_token ?? "";
+  }
+
   mkdirSync(path.dirname(optionsPath), { recursive: true });
   writeFileSync(optionsPath, JSON.stringify(merged, null, 2), "utf8");
   return merged;
@@ -135,6 +145,14 @@ export function loadAppConfig(): AppConfig {
     githubAppPrivateKeyBase64: preferOptionOverEnv(
       options.github_app_private_key,
       process.env.GITHUB_APP_PRIVATE_KEY_BASE64,
+    ),
+    githubClientId: preferOptionOverEnv(
+      options.github_client_id,
+      process.env.GITHUB_CLIENT_ID,
+    ),
+    githubOauthToken: preferOptionOverEnv(
+      options.github_oauth_token,
+      process.env.GITHUB_OAUTH_TOKEN,
     ),
     githubModelsDefaultModel: preferOptionOverEnv(
       options.github_model,
@@ -158,6 +176,7 @@ export function redactConfig(config: AppConfig) {
   return {
     ...config,
     githubAppPrivateKeyBase64: config.githubAppPrivateKeyBase64 ? "configured" : "",
+    githubOauthToken: config.githubOauthToken ? "configured" : "",
     mcpAuthToken: config.mcpAuthToken ? "configured" : "",
     supervisorToken: config.supervisorToken ? "configured" : "",
   };
@@ -167,6 +186,7 @@ export function redactOptions(options: PartialOptions) {
   return {
     ...options,
     github_app_private_key: options.github_app_private_key ? "configured" : "",
+    github_oauth_token: options.github_oauth_token ? "configured" : "",
     mcp_auth_token: options.mcp_auth_token ? "configured" : "",
   };
 }

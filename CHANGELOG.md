@@ -3,6 +3,21 @@
 All notable changes to the **Copilot Brain** Home Assistant add-on are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic Versioning](https://semver.org/).
 
+## [0.3.3] — 2026-04-06
+
+### Added
+- **GitHub OAuth Device Flow** — authorize with GitHub from the UI. Enter Client ID, click Authorize, enter code at github.com/login/device. Token saved automatically.
+- `github_client_id` configuration field for OAuth Device Flow.
+- OAuth token as fallback for GitHub Models API (when GitHub App credentials are not configured).
+
+### Fixed
+- **Ingress CSS/JS loading** — all resource and API paths changed from absolute (`/styles.css`, `/api/...`) to relative for HA ingress proxy compatibility.
+- All `fetch()` calls use computed API base URL to work behind ingress.
+
+### Changed
+- Settings modal reorganized: OAuth section on top, manual GitHub App credentials below.
+- "Authorize SDK in GitHub" renamed to "Authorize GitHub (OAuth)" in menu.
+
 ## [0.3.2] — 2026-04-06
 
 ### Changed
