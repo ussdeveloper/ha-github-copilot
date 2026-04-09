@@ -21,7 +21,7 @@ import { createMcpRouter } from './mcp/server.js';
 import { ChatOrchestrator } from './chat/orchestrator.js';
 import { summarizeAddons, summarizeStates } from './prompt/template.js';
 
-const APP_VERSION = '0.4.3';
+const APP_VERSION = '0.4.4';
 const APP_STAGE = 'experimental';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -51,6 +51,7 @@ function toSettingsPayload(body: Record<string, unknown>): SettingsInput {
     github_app_private_key:
       typeof body.github_app_private_key === 'string' ? body.github_app_private_key : undefined,
     github_client_id: typeof body.github_client_id === 'string' ? body.github_client_id : undefined,
+    github_oauth_token: typeof body.github_oauth_token === 'string' ? body.github_oauth_token : undefined,
     github_model: typeof body.github_model === 'string' ? body.github_model : undefined,
     mcp_auth_token: typeof body.mcp_auth_token === 'string' ? body.mcp_auth_token : undefined,
     approval_mode:

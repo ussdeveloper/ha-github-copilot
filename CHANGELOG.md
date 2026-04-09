@@ -3,6 +3,16 @@
 All notable changes to the **Copilot Brain** Home Assistant add-on are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic Versioning](https://semver.org/).
 
+## [0.4.4] — 2026-04-09
+
+### Changed
+- Added a direct **GitHub access token** field in the UI, so GitHub Models can be configured without needing a Client ID or Device Flow.
+- Added clear inline help explaining what **GitHub Client ID** is and where to find it in GitHub settings.
+
+### Fixed
+- `github_oauth_token` is now accepted by the settings API and saved from the UI correctly.
+- Device Flow guidance now clearly tells the user to use a direct token if they do not have a GitHub App / OAuth App Client ID.
+
 ## [0.4.3] — 2026-04-09
 
 ### Fixed

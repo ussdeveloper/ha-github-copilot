@@ -124,7 +124,7 @@
           </span>
           <span class='sb-item'>
             <span class='mdi mdi-tag-outline'></span>
-            <span id='versionLabel'>v0.4.3</span>
+            <span id='versionLabel'>v0.4.4</span>
           </span>
         </div>
       </footer>
@@ -146,15 +146,26 @@
             <h3><span class='mdi mdi-github'></span> Authorize with GitHub (OAuth)</h3>
           </div>
           <p class='muted-text' style='font-size:12px;margin-bottom:8px'>
-            Wpisz Client ID swojej GitHub App/OAuth App i kliknij Authorize.
-            Otworzy się przepływ Device Flow — wpisz kod na github.com.
+            <strong>Opcja A:</strong> wpisz <strong>Client ID</strong> swojej GitHub App / OAuth App i kliknij Authorize.
+            Otworzy się Device Flow — wpisz kod na github.com/login/device.
+            <br />
+            <strong>Opcja B:</strong> jeśli nie masz Client ID, wklej poniżej token GitHub i kliknij Zapisz.
           </p>
           <div class='form-grid'>
-            <label><span>GitHub Client ID</span><input id='githubClientIdInput' type='text' placeholder='Iv1.xxxxxxxxxxxx' /></label>
+            <label>
+              <span>GitHub Client ID</span>
+              <input id='githubClientIdInput' type='text' placeholder='Iv1.xxxxxxxxxxxx' />
+              <small class='field-help'>GitHub → Settings → Developer settings → GitHub Apps / OAuth Apps → Twoja aplikacja → Client ID.</small>
+            </label>
             <label style='display:flex;align-items:flex-end'>
               <button id='startDeviceFlowBtn' type='button' class='secondary-button' style='width:100%'>
                 <span class='mdi mdi-login'></span> Authorize
               </button>
+            </label>
+            <label class='full-width'>
+              <span>GitHub access token (alternatywa bez Client ID)</span>
+              <input id='githubOauthTokenInput' type='password' placeholder='ghp_... / github_pat_... / token OAuth' />
+              <small class='field-help'>Jeśli nie chcesz tworzyć GitHub App / OAuth App, wklej tutaj token GitHub i kliknij Zapisz. Puste pole zachowuje aktualny token.</small>
             </label>
           </div>
           <div id='deviceFlowStatus' class='hidden' style='margin-top:8px;padding:10px;background:var(--bg);border:1px solid var(--line)'>

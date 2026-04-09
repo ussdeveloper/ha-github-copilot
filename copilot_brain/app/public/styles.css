@@ -176,6 +176,7 @@ code{display:inline-flex;align-items:center;min-height:1.3rem;padding:0 .3rem;ba
 .form-grid label{display:grid;gap:.4rem}
 .form-grid label.full-width{grid-column:1/-1}
 .form-grid span{color:var(--muted);font-size:12px}
+.field-help{color:var(--muted);font-size:11px;line-height:1.4}
 .form-actions{display:flex;justify-content:flex-end;padding-top:4px}
 .form-actions button,.secondary-button{
   display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 12px;
