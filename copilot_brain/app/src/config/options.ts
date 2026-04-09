@@ -7,6 +7,18 @@ loadDotEnv({ path: path.resolve(process.cwd(), "../../.env") });
 
 const PLACEHOLDER_VALUES = new Set(["", "replace-me", "change-me", "todo@example.com"]);
 
+const DEFAULT_SERVICE_ALLOWLIST = [
+  "light.turn_on", "light.turn_off", "light.toggle",
+  "switch.turn_on", "switch.turn_off", "switch.toggle",
+  "script.turn_on", "scene.turn_on",
+  "climate.set_temperature", "climate.set_hvac_mode", "climate.turn_on", "climate.turn_off",
+  "cover.open_cover", "cover.close_cover", "cover.stop_cover",
+  "fan.turn_on", "fan.turn_off", "fan.toggle",
+  "media_player.turn_on", "media_player.turn_off", "media_player.media_play", "media_player.media_pause", "media_player.volume_set",
+  "automation.turn_on", "automation.turn_off", "automation.trigger",
+  "input_boolean.turn_on", "input_boolean.turn_off", "input_boolean.toggle",
+];
+
 const appConfigSchema = z.object({
   port: z.coerce.number().default(8099),
   mcpPort: z.coerce.number().default(8099),
@@ -164,7 +176,7 @@ export function loadAppConfig(): AppConfig {
       process.env.SYSTEM_PROMPT_TEMPLATE,
     ),
     entityAllowlist: options.entity_allowlist ?? [],
-    serviceAllowlist: options.service_allowlist ?? [],
+    serviceAllowlist: options.service_allowlist?.length ? options.service_allowlist : DEFAULT_SERVICE_ALLOWLIST,
     addonAllowlist: options.addon_allowlist ?? [],
     haSupervisorUrl: process.env.HA_SUPERVISOR_URL,
     haCoreUrl: process.env.HA_CORE_URL,

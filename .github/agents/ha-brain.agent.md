@@ -1,12 +1,9 @@
 ---
 name: ha-brain
 description: "Use when: working with Home Assistant through the Copilot Brain MCP server, inspecting entities, planning service calls, or safely controlling automations."
-tools:
-  - ha-copilot-brain/*
+tools:[vscode/getProjectSetupInfo, vscode/installExtension, vscode/memory, vscode/newWorkspace, vscode/resolveMemoryFileUri, vscode/runCommand, vscode/vscodeAPI, vscode/extensions, vscode/askQuestions, execute/runNotebookCell, execute/testFailure, execute/getTerminalOutput, execute/killTerminal, execute/sendToTerminal, execute/runTask, execute/createAndRunTask, execute/runInTerminal, execute/runTests, read/getNotebookSummary, read/problems, read/readFile, read/viewImage, read/terminalSelection, read/terminalLastCommand, read/getTaskOutput, agent/runSubagent, edit/createDirectory, edit/createFile, edit/createJupyterNotebook, edit/editFiles, edit/editNotebook, edit/rename, search/changes, search/codebase, search/fileSearch, search/listDirectory, search/textSearch, search/searchSubagent, search/usages, web/fetch, web/githubRepo, browser/openBrowserPage, browser/readPage, browser/screenshotPage, browser/navigatePage, browser/clickElement, browser/dragElement, browser/hoverElement, browser/typeInPage, browser/runPlaywrightCode, browser/handleDialog, todo]
 target: vscode
-model:
-  - GPT-5 (copilot)
----
+
 
 # Copilot Brain — Project Governance Agent
 
@@ -31,15 +28,36 @@ Copilot Brain is an experimental HA add-on that provides a VS Code–style AI ch
 2. **Version discipline** — every user-visible change must bump the version:
    - Patch (0.x.Y) for bug fixes
    - Minor (0.X.0) for new features
-   - Always update: `config.yaml`, `package.json`, `server.ts` (APP_VERSION), `CHANGELOG.md`
+   - Always update: `config.yaml`, `package.json`, `server.ts` (APP_VERSION), `CHANGELOG.md`, `app.js` comment, `index.html` versionLabel, `README.md`, `DOCS.md`
 3. **CHANGELOG.md** must be updated with every release — HA add-on store reads it.
-4. **No secrets in code** — use `.env` for local dev, HA options for production. Never commit tokens/keys.
+4. **No secrets in code** — use `.env` for local dev, UI settings for production. Never commit tokens/keys.
 5. **UI matches drawio** — the canonical UI layout is defined in `UI.drawio`. Any UI change must align with it.
 6. **Terminal is guarded** — all terminal commands go through `executeTerminalCommand()`, not raw shell.
 7. **VS Code style** — UI must maintain VS Code dark theme aesthetics, MDI icons only, no emoji.
 8. **Build before commit** — always run `npm run build` in `copilot_brain/app/` and verify no errors.
 9. **Test locally** — start with `npm start`, verify in browser before committing.
 10. **Commit messages** — format: `Release vX.Y.Z <brief description>` for releases, conventional commits otherwise.
+11. **Zero config.yaml options** — all settings are managed from the built-in UI. Do NOT add `options:` or `schema:` to config.yaml.
+
+## MANDATORY: Commit & Push After Every Change
+
+**After completing ANY code change (bug fix, feature, version bump, etc.), you MUST:**
+
+1. Run `npm run build` in `copilot_brain/app/` — verify zero errors.
+2. Bump the version in ALL of these files (use the same version everywhere):
+   - `copilot_brain/config.yaml` → `version: "X.Y.Z"`
+   - `copilot_brain/app/package.json` → `"version": "X.Y.Z"`
+   - `copilot_brain/app/src/server.ts` → `APP_VERSION = 'X.Y.Z'`
+   - `copilot_brain/app/public/app.js` → comment header
+   - `copilot_brain/app/public/index.html` → `versionLabel`
+   - `README.md` → version badge
+   - `copilot_brain/DOCS.md` → version header
+3. Add entry to `CHANGELOG.md`.
+4. `git add -A && git commit -m "Release vX.Y.Z <description>"` 
+5. `git push origin main`
+
+**This is not optional. The user relies on git pushes to trigger HA add-on updates.  
+Skipping this step means the user cannot see or install the changes.**
 
 ## File Structure
 

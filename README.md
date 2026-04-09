@@ -1,6 +1,6 @@
 # Home Assistant GitHub Copilot Add-on Repository
 
-> **Version:** `0.3.0`
+> **Version:** `0.4.0`
 >
 > **Status:** experimental / in progress — safe to explore, not ready to call “done”.
 
@@ -20,17 +20,19 @@ This repository contains `Copilot Brain`, a Home Assistant add-on that exposes a
 3. Add the repository URL:
 	- `https://github.com/ussdeveloper/ha-github-copilot`
 4. Refresh the store and install **Copilot Brain**.
-5. Configure GitHub App credentials and the model in the add-on options.
+5. Start the add-on and open its **Web UI** — all configuration is done from there.
 
 The add-on is intentionally configured to build **from repository source** instead of pulling a prebuilt registry image. That makes iteration easier while the project is still experimental.
 
 ## Current focus
 
+- **Zero config.yaml** — no add-on options; everything is configured from the built-in UI
+- **GitHub OAuth Device Flow** — authorize GitHub from the UI (File → Settings → Authorize)
 - Ingress UI with **chat on top** and **Home Assistant terminal at the bottom**
 - GitHub App authentication and GitHub Models access
 - Approval queue plus audit log for mutating actions
 - MCP endpoint for GitHub Copilot and future integrations
-- Extensible left-hand feature menu for additional capabilities
+- Predefined commands system for quick AI-powered actions
 
 ## Secret hygiene — seriously, no gremlins in git
 

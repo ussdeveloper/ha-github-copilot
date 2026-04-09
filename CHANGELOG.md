@@ -3,6 +3,18 @@
 All notable changes to the **Copilot Brain** Home Assistant add-on are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic Versioning](https://semver.org/).
 
+## [0.4.0] — 2026-04-09
+
+### Changed
+- **Zero config.yaml** — removed ALL `options:` and `schema:` from config.yaml. The add-on has no HA configuration page.
+- All settings (GitHub credentials, OAuth, model, allowlists, MCP token, etc.) are configured entirely from the built-in UI (File → Settings).
+- Default service allowlist (30 services) baked into the application code — works out of the box without any configuration.
+- Translations simplified — no more configuration field descriptions.
+
+### Removed
+- All option fields from `config.yaml` (`github_app_id`, `github_app_installation_id`, `github_app_private_key`, `github_client_id`, `github_model`, `mcp_auth_token`, `approval_mode`, `system_prompt_template`, `entity_allowlist`, `service_allowlist`, `addon_allowlist`).
+- HA add-on configuration schema — add-on settings page in HA will be empty by design.
+
 ## [0.3.3] — 2026-04-06
 
 ### Added

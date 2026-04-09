@@ -1,6 +1,6 @@
 # Copilot Brain
 
-> Version `0.3.1`  
+> Version `0.4.0`  
 > Stage: **experimental / in progress**
 
 Copilot Brain adds a GitHub-backed operator console to Home Assistant. It provides:
@@ -11,6 +11,7 @@ Copilot Brain adds a GitHub-backed operator console to Home Assistant. It provid
 - a **log panel** with Terminal and Output tabs at the bottom,
 - a **predefined commands** menu for quick HA operations,
 - a **status bar** showing connection/version info,
+- **GitHub OAuth Device Flow** authorization from the UI,
 - configurable GitHub App credentials and GitHub Models selection,
 - guarded Home Assistant actions with approval flow,
 - an MCP endpoint for GitHub Copilot integrations.
@@ -20,9 +21,11 @@ Copilot Brain adds a GitHub-backed operator console to Home Assistant. It provid
 1. Add `https://github.com/ussdeveloper/ha-github-copilot` as a custom add-on repository in Home Assistant.
 2. Install **Copilot Brain** from the add-on store.
 3. Start the add-on and open the Ingress UI.
-4. Configure GitHub App settings and safety allowlists via **File → Settings**.
+4. All configuration is done from the UI: **File → Settings**.
 
 The add-on builds from repository source, which is intentional while the project is still experimental.
+
+> **Note:** There are no configuration options on the HA add-on settings page. Everything is managed from the built-in web UI.
 
 ## UI layout
 
@@ -47,24 +50,30 @@ Click the **⌘ Commands** button above the terminal to access quick-fire comman
 
 ## Configuration
 
-### GitHub App settings
+All settings are managed from **File → Settings** in the Copilot Brain UI. There are no HA add-on configuration options.
 
-- `github_app_id` — GitHub App identifier
-- `github_app_installation_id` — installation identifier for the target owner
-- `github_app_private_key` — PEM private key or base64-encoded PEM value
-- `github_model` — model id such as `openai/gpt-4.1`
+### GitHub authorization
+
+Two methods are available:
+
+1. **OAuth Device Flow** (recommended) — enter your GitHub Client ID, click Authorize, and enter the code at `github.com/login/device`. The token is saved automatically.
+2. **Manual GitHub App** — provide `App ID`, `Installation ID`, and `Private Key (PEM/base64)` in the settings form.
+
+### AI model
+
+- `Model` — model id such as `openai/gpt-4.1` (default)
 
 ### Safety controls
 
-- `approval_mode` — `explicit` or `read-only`
-- `entity_allowlist` — entities the assistant may operate on
-- `service_allowlist` — services the assistant may call (defaults include light, switch, script, scene, climate, cover, fan, media_player, automation, input_boolean)
-- `addon_allowlist` — add-ons the assistant may inspect/use
-- `system_prompt_template` — system prompt template injected into GitHub Models chat
+- `Approval mode` — `explicit` (requires approval for mutations) or `read-only`
+- `Entity allowlist` — entities the assistant may operate on
+- `Service allowlist` — services the assistant may call (30 defaults included: light, switch, script, scene, climate, cover, fan, media_player, automation, input_boolean)
+- `Addon allowlist` — add-ons the assistant may inspect/use
+- `System prompt` — system prompt template injected into GitHub Models chat
 
 ### MCP
 
-- `mcp_auth_token` — bearer token required for `/mcp`
+- `MCP token` — bearer token required for the `/mcp` endpoint
 
 ## Home Assistant terminal
 
