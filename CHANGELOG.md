@@ -3,6 +3,13 @@
 All notable changes to the **Copilot Brain** Home Assistant add-on are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic Versioning](https://semver.org/).
 
+## [0.4.5] — 2026-04-09
+
+### Changed
+- GitHub authorization UI now uses **only Device Flow** — removed the separate "access token" alternative input that was creating confusion.
+- Rewritten GitHub OAuth section descriptions in Settings: single clear flow, no more "Option A / Option B" split.
+- Improved status messages during Device Flow to not mention the removed token fallback.
+
 ## [0.4.4] — 2026-04-09
 
 ### Changed

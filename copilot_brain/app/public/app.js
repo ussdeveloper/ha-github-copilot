@@ -1,4 +1,4 @@
-/* ═══  Copilot Brain 0.4.4 — frontend  ═══ */
+/* ═══  Copilot Brain 0.4.5 — frontend  ═══ */
 
 // ── API base (handles HA ingress proxy) ──
 const API_BASE = (() => {
@@ -62,7 +62,6 @@ const systemPromptInput     = $('systemPromptInput');
 const testGithubButton      = $('testGithubButton');
 
 const githubClientIdInput     = $('githubClientIdInput');
-const githubOauthTokenInput   = $('githubOauthTokenInput');
 const startDeviceFlowBtn      = $('startDeviceFlowBtn');
 const deviceFlowStatus        = $('deviceFlowStatus');
 const deviceFlowCode          = $('deviceFlowCode');
@@ -209,7 +208,7 @@ authorizeGithubItem.addEventListener('click', async () => {
     return;
   }
 
-  setDeviceFlowNotice('Najpierw wpisz GitHub Client ID, potem kliknij Authorize.', 'warning', '—');
+  setDeviceFlowNotice('Wpisz Client ID ze swojej GitHub App lub OAuth App, a następnie kliknij Authorize.', 'warning', '—');
   githubClientIdInput.focus();
 });
 
@@ -475,10 +474,6 @@ function hydrateSettings(s) {
   githubAppIdInput.value = s.effectiveConfig.githubAppId ?? '';
   githubInstallationIdInput.value = s.effectiveConfig.githubAppInstallationId ?? '';
   githubClientIdInput.value = s.effectiveConfig.githubClientId ?? '';
-  githubOauthTokenInput.value = '';
-  githubOauthTokenInput.placeholder = s.settings?.github_oauth_token === 'configured'
-    ? 'Token already saved — leave empty to keep it'
-    : 'ghp_... / github_pat_... / token OAuth';
   entityAllowlistInput.value = listToText(s.effectiveConfig.entityAllowlist);
   serviceAllowlistInput.value = listToText(s.effectiveConfig.serviceAllowlist);
   addonAllowlistInput.value = listToText(s.effectiveConfig.addonAllowlist);
@@ -523,7 +518,6 @@ settingsForm.addEventListener('submit', async e => {
     github_app_installation_id: githubInstallationIdInput.value.trim(),
     github_app_private_key: githubPrivateKeyInput.value.trim(),
     github_client_id: githubClientIdInput.value.trim(),
-    github_oauth_token: githubOauthTokenInput.value.trim(),
     entity_allowlist: entityAllowlistInput.value,
     service_allowlist: serviceAllowlistInput.value,
     addon_allowlist: addonAllowlistInput.value,
@@ -538,7 +532,7 @@ settingsForm.addEventListener('submit', async e => {
     if (!res.ok) throw new Error(data.error ?? 'Settings error');
     appendMessage('assistant', 'Ustawienia zapisane.');
     termLine('system', 'Runtime settings updated.');
-    mcpTokenInput.value = ''; githubPrivateKeyInput.value = ''; githubOauthTokenInput.value = '';
+    mcpTokenInput.value = ''; githubPrivateKeyInput.value = '';
     settingsHydrated = false;
     await refresh({ forceSettings: true });
   } catch (err) {
@@ -583,7 +577,7 @@ testGithubButton.addEventListener('click', async () => {
 async function startGitHubDeviceFlow() {
   const clientId = githubClientIdInput.value.trim();
   if (!clientId) {
-    setDeviceFlowNotice('Do Device Flow potrzebny jest Client ID z Twojej GitHub App albo OAuth App. Jeśli go nie masz, wklej token GitHub niżej i kliknij Zapisz.', 'warning', '—');
+    setDeviceFlowNotice('Wpisz Client ID ze swojej GitHub App lub OAuth App, a następnie kliknij Authorize.', 'warning', '—');
     githubClientIdInput.focus();
     return;
   }
