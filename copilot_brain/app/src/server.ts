@@ -21,7 +21,7 @@ import { createMcpRouter } from './mcp/server.js';
 import { ChatOrchestrator } from './chat/orchestrator.js';
 import { summarizeAddons, summarizeStates } from './prompt/template.js';
 
-const APP_VERSION = '0.4.1';
+const APP_VERSION = '0.4.2';
 const APP_STAGE = 'experimental';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -104,6 +104,18 @@ interface TerminalCommandResult {
   exitCode?: number;
   clear?: boolean;
   meta?: Record<string, unknown>;
+}
+
+function getGitHubAuthMode(runtime: Runtime): 'github-app' | 'oauth-device-flow' | 'none' {
+  if (runtime.auth.isConfigured()) {
+    return 'github-app';
+  }
+
+  if (runtime.config.githubOauthToken) {
+    return 'oauth-device-flow';
+  }
+
+  return 'none';
 }
 
 function clampNumber(value: string | undefined, fallback: number, max = 100): number {
@@ -569,27 +581,42 @@ async function bootstrap() {
 
   app.get('/api/github/status', async (_request, response) => {
     try {
-      const configured = runtime.auth.isConfigured();
-      if (!configured) {
+      const authMode = getGitHubAuthMode(runtime);
+      if (authMode === 'none') {
         return response.json({
           ok: false,
-          configured,
-          message: 'GitHub App credentials are incomplete or still use placeholder values.',
+          configured: false,
+          authMode,
+          message: 'GitHub is not configured yet. Use OAuth Device Flow or GitHub App credentials in Settings.',
         });
       }
 
-      const metadata = await runtime.auth.getAppMetadata();
+      const modelAccess = await runtime.models.testAccess(runtime.config.githubModelsDefaultModel);
+      if (authMode === 'github-app') {
+        const metadata = await runtime.auth.getAppMetadata();
+        return response.json({
+          ok: modelAccess.ok,
+          configured: true,
+          authMode,
+          app: metadata,
+          installationId: runtime.config.githubAppInstallationId,
+          selectedModel: runtime.config.githubModelsDefaultModel,
+          modelAccess,
+        });
+      }
+
       response.json({
-        ok: true,
-        configured,
-        app: metadata,
-        installationId: runtime.config.githubAppInstallationId,
+        ok: modelAccess.ok,
+        configured: true,
+        authMode,
+        oauthTokenConfigured: true,
         selectedModel: runtime.config.githubModelsDefaultModel,
+        modelAccess,
       });
     } catch (error) {
       response.status(500).json({
         ok: false,
-        configured: runtime.auth.isConfigured(),
+        configured: getGitHubAuthMode(runtime) !== 'none',
         error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
@@ -597,11 +624,25 @@ async function bootstrap() {
 
   app.post('/api/github/test-auth', async (_request, response) => {
     try {
-      if (!runtime.auth.isConfigured()) {
+      const authMode = getGitHubAuthMode(runtime);
+      if (authMode === 'none') {
         return response.status(400).json({
           ok: false,
-          error: 'GitHub App credentials are not configured.',
+          error: 'GitHub auth is not configured. Use OAuth Device Flow or GitHub App credentials in Settings.',
         });
+      }
+
+      if (authMode === 'oauth-device-flow') {
+        const modelAccess = await runtime.models.testAccess(runtime.config.githubModelsDefaultModel);
+        const result = {
+          ok: modelAccess.ok,
+          authMode,
+          oauthTokenConfigured: true,
+          selectedModel: runtime.config.githubModelsDefaultModel,
+          modelAccess,
+        };
+        audit.add('tool_call', 'Tested GitHub OAuth authentication', result);
+        return response.json(result);
       }
 
       const [metadata, installationToken, modelAccess] = await Promise.all([
@@ -612,6 +653,7 @@ async function bootstrap() {
 
       const result = {
         ok: Boolean(installationToken),
+        authMode,
         app: metadata,
         installationTokenIssued: Boolean(installationToken),
         selectedModel: runtime.config.githubModelsDefaultModel,
@@ -641,7 +683,7 @@ async function bootstrap() {
       if (!clientId) {
         return response.status(400).json({
           ok: false,
-          error: 'github_client_id is not configured. Open Settings in the UI and set GitHub Client ID first.',
+          error: 'github_client_id is not configured. Open Settings in the UI, enter GitHub Client ID, then start OAuth.',
         });
       }
 

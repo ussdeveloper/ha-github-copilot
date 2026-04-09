@@ -1,4 +1,4 @@
-/* ═══  Copilot Brain 0.4.1 — frontend  ═══ */
+/* ═══  Copilot Brain 0.4.2 — frontend  ═══ */
 
 // ── API base (handles HA ingress proxy) ──
 const API_BASE = (() => {
@@ -38,6 +38,7 @@ const settingsModalBackdrop = $('settingsModalBackdrop');
 const closeSettingsModalBtn = $('closeSettingsModalButton');
 const openSettingsItem      = $('openSettingsMenuItem');
 const authorizeGithubItem   = $('authorizeGithubMenuItem');
+const githubOauthSection    = $('githubOauthSection');
 
 const commandsModal         = $('commandsModal');
 const commandsModalBackdrop = $('commandsModalBackdrop');
@@ -48,6 +49,7 @@ const addCommandForm        = $('addCommandForm');
 
 const settingsForm          = $('settingsForm');
 const githubModelInput      = $('githubModelInput');
+const refreshModelsButton   = $('refreshModelsButton');
 const approvalModeInput     = $('approvalModeInput');
 const mcpTokenInput         = $('mcpTokenInput');
 const githubAppIdInput      = $('githubAppIdInput');
@@ -85,10 +87,65 @@ const COMMANDS_KEY = 'cb-commands-v1';
 let settingsHydrated = false;
 let terminalHistory = [];
 let predefinedCommands = [];
+let terminalHistoryCursor = -1;
+let devicePollTimer = null;
 
 // ── Helpers ──
 const toJson = (v) => JSON.stringify(v, null, 2);
 const listToText = (v) => (Array.isArray(v) ? v.join('\n') : '');
+const uniqueStrings = (values) => [...new Set((values || []).map((value) => String(value).trim()).filter(Boolean))];
+
+function focusTerminalInput() {
+  if (!terminalInput) return;
+  requestAnimationFrame(() => terminalInput.focus());
+}
+
+function getTerminalCommands() {
+  return terminalHistory.filter((entry) => entry.kind === 'command').map((entry) => entry.text);
+}
+
+function navigateTerminalHistory(direction) {
+  const commands = getTerminalCommands();
+  if (!commands.length) return;
+
+  if (direction < 0) {
+    terminalHistoryCursor = Math.min(commands.length - 1, terminalHistoryCursor + 1);
+  } else if (terminalHistoryCursor <= 0) {
+    terminalHistoryCursor = -1;
+    terminalInput.value = '';
+    return;
+  } else {
+    terminalHistoryCursor -= 1;
+  }
+
+  if (terminalHistoryCursor >= 0) {
+    terminalInput.value = commands[commands.length - 1 - terminalHistoryCursor] ?? '';
+  }
+}
+
+function renderModelOptions(models, preferredModel) {
+  const options = uniqueStrings([preferredModel, ...(models || [])]);
+  if (!options.length) {
+    options.push('openai/gpt-4.1');
+  }
+
+  const currentValue = preferredModel || githubModelInput.value || options[0];
+  githubModelInput.innerHTML = '';
+  for (const model of options) {
+    const option = document.createElement('option');
+    option.value = model;
+    option.textContent = model;
+    githubModelInput.appendChild(option);
+  }
+  githubModelInput.value = options.includes(currentValue) ? currentValue : options[0];
+}
+
+function setDeviceFlowNotice(message, tone = 'muted', code = '') {
+  deviceFlowStatus.classList.remove('hidden');
+  deviceFlowCode.textContent = code;
+  deviceFlowMsg.textContent = message;
+  deviceFlowMsg.style.color = `var(--${tone})`;
+}
 
 // ══════════════════════════════════════════
 //  MENUS
@@ -103,10 +160,14 @@ function closeAllMenus() {
   [fileMenuButton, viewMenuButton].forEach(b => b.classList.remove('open'));
 }
 
+function stopMenuEvent(event) {
+  event.stopPropagation();
+}
+
 fileMenuButton.addEventListener('click', () => toggleMenu(fileMenuButton, fileMenu));
 viewMenuButton.addEventListener('click', () => toggleMenu(viewMenuButton, viewMenu));
 [fileMenuButton, fileMenu, viewMenuButton, viewMenu].forEach(el =>
-  el.addEventListener('mousedown', e => e.stopPropagation()));
+  ['mousedown', 'click'].forEach((eventName) => el.addEventListener(eventName, stopMenuEvent)));
 document.addEventListener('click', closeAllMenus);
 
 // ══════════════════════════════════════════
@@ -122,13 +183,24 @@ function closeModal(modal, backdrop) {
   modal.setAttribute('aria-hidden', 'true');
 }
 
-openSettingsItem.addEventListener('click', () => openModal(settingsModal, settingsModalBackdrop));
 closeSettingsModalBtn.addEventListener('click', () => closeModal(settingsModal, settingsModalBackdrop));
 settingsModalBackdrop.addEventListener('click', () => closeModal(settingsModal, settingsModalBackdrop));
 
-authorizeGithubItem.addEventListener('click', () => {
+openSettingsItem.addEventListener('click', () => {
   openModal(settingsModal, settingsModalBackdrop);
-  testGithubButton.click();
+  githubModelInput.focus();
+});
+
+authorizeGithubItem.addEventListener('click', async () => {
+  openModal(settingsModal, settingsModalBackdrop);
+  githubOauthSection?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  if (githubClientIdInput.value.trim()) {
+    await startGitHubDeviceFlow();
+    return;
+  }
+
+  setDeviceFlowNotice('Najpierw wpisz GitHub Client ID, potem kliknij Authorize.', 'warning', '—');
+  githubClientIdInput.focus();
 });
 
 openCommandsItem.addEventListener('click', () => openModal(commandsModal, commandsModalBackdrop));
@@ -152,6 +224,7 @@ const tabBodies = { terminal: $('terminalTabBody'), output: $('outputTabBody') }
 function switchTab(name) {
   panelTabs.forEach(t => t.classList.toggle('active', t.dataset.tab === name));
   Object.entries(tabBodies).forEach(([k, el]) => el.classList.toggle('hidden', k !== name));
+  if (name === 'terminal') focusTerminalInput();
 }
 
 panelTabs.forEach(t => t.addEventListener('click', () => switchTab(t.dataset.tab)));
@@ -265,11 +338,13 @@ function clearTerminal(msg) {
 }
 
 terminalClearBtn.addEventListener('click', () => { clearTerminal('Console cleared.'); terminalInput.focus(); });
+terminalLog.addEventListener('click', focusTerminalInput);
 
 terminalForm.addEventListener('submit', async e => {
   e.preventDefault();
   const cmd = terminalInput.value.trim();
   if (!cmd) return;
+  terminalHistoryCursor = -1;
   termLine('command', cmd);
   terminalInput.value = '';
   try {
@@ -283,6 +358,18 @@ terminalForm.addEventListener('submit', async e => {
     if (res.ok) await refresh();
   } catch (err) {
     termLine('error', err.message);
+  } finally {
+    focusTerminalInput();
+  }
+});
+
+terminalInput.addEventListener('keydown', e => {
+  if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    navigateTerminalHistory(-1);
+  } else if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    navigateTerminalHistory(1);
   }
 });
 
@@ -373,7 +460,7 @@ function setSbStatus(el, ok, label) { if (el) el.textContent = label; }
 //  SETTINGS FORM
 // ══════════════════════════════════════════
 function hydrateSettings(s) {
-  githubModelInput.value = s.effectiveConfig.githubModelsDefaultModel ?? '';
+  githubModelInput.dataset.savedValue = s.effectiveConfig.githubModelsDefaultModel ?? 'openai/gpt-4.1';
   approvalModeInput.value = s.effectiveConfig.approvalMode ?? 'explicit';
   githubAppIdInput.value = s.effectiveConfig.githubAppId ?? '';
   githubInstallationIdInput.value = s.effectiveConfig.githubAppInstallationId ?? '';
@@ -444,6 +531,20 @@ settingsForm.addEventListener('submit', async e => {
   }
 });
 
+refreshModelsButton.addEventListener('click', async () => {
+  try {
+    refreshModelsButton.disabled = true;
+    const models = await loadJson(apiUrl('api/models'));
+    renderModelOptions(models.models, githubModelInput.value || githubModelInput.dataset.savedValue || models.selected);
+    modelsBox.textContent = toJson(models);
+    termLine('system', `Models loaded: ${models.models?.length ?? 0}`);
+  } catch (err) {
+    termLine('error', `Models: ${err.message}`);
+  } finally {
+    refreshModelsButton.disabled = false;
+  }
+});
+
 testGithubButton.addEventListener('click', async () => {
   try {
     testGithubButton.disabled = true;
@@ -463,28 +564,30 @@ testGithubButton.addEventListener('click', async () => {
 // ══════════════════════════════════════════
 //  GITHUB DEVICE FLOW (OAuth)
 // ══════════════════════════════════════════
-let devicePollTimer = null;
-
-startDeviceFlowBtn.addEventListener('click', async () => {
-  // Save client_id first if provided
+async function startGitHubDeviceFlow() {
   const clientId = githubClientIdInput.value.trim();
-  if (clientId) {
-    await fetch(apiUrl('api/settings'), {
-      method: 'PUT', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ github_client_id: clientId }),
-    });
+  if (!clientId) {
+    setDeviceFlowNotice('GitHub Client ID jest wymagany do OAuth Device Flow.', 'warning', '—');
+    githubClientIdInput.focus();
+    return;
   }
 
   try {
     startDeviceFlowBtn.disabled = true;
+    const saveRes = await fetch(apiUrl('api/settings'), {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ github_client_id: clientId }),
+    });
+    const saveData = await saveRes.json().catch(() => ({}));
+    if (!saveRes.ok) throw new Error(saveData.error ?? 'Nie udało się zapisać GitHub Client ID.');
+
     const res = await fetch(apiUrl('api/auth/github/device-code'), { method: 'POST' });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error ?? 'Device flow error');
 
     deviceFlowCode.textContent = data.userCode;
     deviceFlowLink.href = data.verificationUri;
-    deviceFlowMsg.textContent = 'Oczekiwanie na autoryzację…';
-    deviceFlowStatus.classList.remove('hidden');
+    setDeviceFlowNotice('Oczekiwanie na autoryzację…', 'muted', data.userCode);
 
     termLine('system', `GitHub OAuth: wpisz kod ${data.userCode} na ${data.verificationUri}`);
 
@@ -498,7 +601,9 @@ startDeviceFlowBtn.addEventListener('click', async () => {
   } finally {
     startDeviceFlowBtn.disabled = false;
   }
-});
+}
+
+startDeviceFlowBtn.addEventListener('click', startGitHubDeviceFlow);
 
 async function pollDeviceFlow() {
   try {
@@ -507,16 +612,13 @@ async function pollDeviceFlow() {
 
     if (data.status === 'complete') {
       clearInterval(devicePollTimer); devicePollTimer = null;
-      deviceFlowMsg.textContent = '✓ Autoryzacja zakończona!';
-      deviceFlowMsg.style.color = 'var(--success)';
-      deviceFlowCode.textContent = '✓';
+      setDeviceFlowNotice('✓ Autoryzacja zakończona!', 'success', '✓');
       appendMessage('assistant', 'GitHub OAuth autoryzacja zakończona pomyślnie!');
       termLine('system', 'GitHub OAuth: token saved.');
       await refresh({ forceSettings: true });
     } else if (data.status === 'expired' || data.status === 'error') {
       clearInterval(devicePollTimer); devicePollTimer = null;
-      deviceFlowMsg.textContent = data.error ?? 'Wygasło — spróbuj ponownie.';
-      deviceFlowMsg.style.color = 'var(--danger)';
+      setDeviceFlowNotice(data.error ?? 'Wygasło — spróbuj ponownie.', 'danger', '×');
     } else if (data.status === 'slow_down') {
       // Handled server-side by increasing interval
     }
@@ -578,6 +680,9 @@ async function refresh(opts = {}) {
   // Settings
   if (settings.ok && (!settingsHydrated || forceSettings)) hydrateSettings(settings.data);
 
+  const preferredModel = githubModelInput.value || githubModelInput.dataset.savedValue || settings.data?.effectiveConfig?.githubModelsDefaultModel || 'openai/gpt-4.1';
+  renderModelOptions(models.ok ? models.data.models : [preferredModel], preferredModel);
+
   // Model label
   if (settings.ok) modelLabel.textContent = settings.data.effectiveConfig.githubModelsDefaultModel ?? '—';
 
@@ -618,5 +723,6 @@ renderCommands();
 appendMessage('assistant',
   'Witaj w Copilot Brain.\nChat u góry, terminal na dole. Przeciągnij pasek aby zmienić proporcje.\nFile → Settings / Predefined Commands.\nAutoryzuj GitHub przez OAuth w Settings.');
 
+focusTerminalInput();
 refresh({ forceSettings: true });
 setInterval(() => refresh(), 30000);

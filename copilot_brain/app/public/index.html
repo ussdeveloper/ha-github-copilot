@@ -124,7 +124,7 @@
           </span>
           <span class='sb-item'>
             <span class='mdi mdi-tag-outline'></span>
-            <span id='versionLabel'>v0.4.1</span>
+            <span id='versionLabel'>v0.4.2</span>
           </span>
         </div>
       </footer>
@@ -141,7 +141,7 @@
         </button>
       </header>
       <div class='modal-body'>
-        <div class='settings-section'>
+        <div class='settings-section' id='githubOauthSection'>
           <div class='settings-section-header'>
             <h3><span class='mdi mdi-github'></span> Authorize with GitHub (OAuth)</h3>
           </div>
@@ -178,7 +178,12 @@
 
         <form id='settingsForm' class='settings-form'>
           <div class='form-grid'>
-            <label><span>Model GitHub</span><input id='githubModelInput' type='text' placeholder='openai/gpt-4.1' /></label>
+            <label><span>Model GitHub</span><select id='githubModelInput'></select></label>
+            <label style='display:flex;align-items:flex-end'>
+              <button id='refreshModelsButton' type='button' class='secondary-button' style='width:100%'>
+                <span class='mdi mdi-refresh'></span> Load models
+              </button>
+            </label>
             <label><span>Approval mode</span>
               <select id='approvalModeInput'>
                 <option value='explicit'>explicit</option>
@@ -208,6 +213,7 @@
             <div id='approvalsBox' class='approval-list'>—</div>
           </article>
           <article class='info-tile'><h3><span class='mdi mdi-atom-variant'></span> Models</h3><pre id='modelsBox'>—</pre></article>
+        </div>
         </div>
       </div>
     </section>

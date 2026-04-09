@@ -3,6 +3,15 @@
 All notable changes to the **Copilot Brain** Home Assistant add-on are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic Versioning](https://semver.org/).
 
+## [0.4.2] — 2026-04-09
+
+### Fixed
+- **Menu File/View now works correctly** — fixed click propagation and repaired malformed settings modal HTML that was breaking DOM interaction.
+- **Terminal input is interactive again** — improved focus behavior and added command history navigation with Arrow Up / Arrow Down.
+- **GitHub OAuth flow works from the UI** — the File → Authorize action now opens the OAuth section and starts the correct device flow instead of incorrectly running GitHub App auth test.
+- **OAuth is now treated as a real auth mode** in `/api/github/status` and `/api/github/test-auth`, so the UI can validate GitHub access after device authorization.
+- **Model selection from available models** — the settings UI now loads GitHub Models into a selectable list instead of requiring manual typing.
+
 ## [0.4.1] — 2026-04-09
 
 ### Fixed

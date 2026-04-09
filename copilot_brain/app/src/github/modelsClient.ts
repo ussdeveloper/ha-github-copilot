@@ -51,7 +51,7 @@ export class GitHubModelsClient {
   async chat(request: ChatRequest): Promise<string> {
     const token = await this.tokenProvider();
     if (!token) {
-      return "GitHub App auth is not configured yet. Configure your GitHub App credentials in the add-on settings to enable live model responses.";
+      return "GitHub auth is not configured yet. Open Settings in Copilot Brain and authorize with GitHub OAuth or enter GitHub App credentials to enable live model responses.";
     }
 
     const response = await fetch("https://models.github.ai/inference/chat/completions", {
