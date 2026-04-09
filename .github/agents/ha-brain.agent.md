@@ -38,6 +38,20 @@ Copilot Brain is an experimental HA add-on that provides a VS Code–style AI ch
 9. **Test locally** — start with `npm start`, verify in browser before committing.
 10. **Commit messages** — format: `Release vX.Y.Z <brief description>` for releases, conventional commits otherwise.
 11. **Zero config.yaml options** — all settings are managed from the built-in UI. Do NOT add `options:` or `schema:` to config.yaml.
+12. **Docs first for GitHub/Copilot auth work** — before implementing or changing anything related to GitHub OAuth, Copilot SDK, auth, tokens, models, or login flows, first fetch and review the latest official documentation, starting with `https://docs.github.com/en/copilot/how-tos/copilot-sdk/set-up-copilot-sdk/github-oauth` and relevant linked pages. Treat official docs as the source of truth because Copilot SDK is preview/public preview and changes over time.
+
+## Documentation-First Rules for GitHub / Copilot SDK
+
+When a task touches **GitHub OAuth**, **Copilot SDK**, **token types**, **login flows**, or **model access**:
+
+1. **Fetch current official docs first** — do not rely on memory alone.
+2. **Update knowledge before coding** — review linked official docs/repo docs when relevant.
+3. **If docs and existing code conflict, docs win** — revise the implementation plan before editing.
+4. **Do not assume email can authenticate a user** — email is not a GitHub OAuth credential.
+5. **For standard GitHub OAuth web flow**, expect a registered **GitHub App or OAuth App**, a real **callback URL**, a **Client ID**, and **server-side token exchange** using **Client Secret**.
+6. **For Device Flow**, expect a valid **Client ID** and enabled device flow in the app settings.
+7. **For Copilot SDK token compatibility**, prefer current documented token types such as `gho_`, `ghu_`, and `github_pat_`; treat `ghp_` classic tokens as deprecated / unsupported for this flow.
+8. **Token lifecycle is app responsibility** — storage, refresh, and expiration handling must be implemented by the app, not assumed to be managed by the SDK.
 
 ## MANDATORY: Commit & Push After Every Change
 
