@@ -3,6 +3,12 @@
 All notable changes to the **Copilot Brain** Home Assistant add-on are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic Versioning](https://semver.org/).
 
+## [0.4.3] — 2026-04-09
+
+### Fixed
+- Replaced raw browser `Failed to fetch` errors with a clear message that Copilot Brain is temporarily unreachable or restarting.
+- Network-related chat, terminal, settings, OAuth, and status refresh errors now show user-friendly diagnostics instead of generic fetch failures.
+
 ## [0.4.2] — 2026-04-09
 
 ### Fixed

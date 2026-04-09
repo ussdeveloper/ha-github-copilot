@@ -1,4 +1,4 @@
-/* ═══  Copilot Brain 0.4.2 — frontend  ═══ */
+/* ═══  Copilot Brain 0.4.3 — frontend  ═══ */
 
 // ── API base (handles HA ingress proxy) ──
 const API_BASE = (() => {
@@ -94,6 +94,15 @@ let devicePollTimer = null;
 const toJson = (v) => JSON.stringify(v, null, 2);
 const listToText = (v) => (Array.isArray(v) ? v.join('\n') : '');
 const uniqueStrings = (values) => [...new Set((values || []).map((value) => String(value).trim()).filter(Boolean))];
+
+function formatErrorMessage(error, fallback = 'Wystąpił nieznany błąd.') {
+  const message = error instanceof Error ? error.message : String(error ?? fallback);
+  if (message === 'Failed to fetch') {
+    return 'Brak połączenia z dodatkiem. Poczekaj chwilę aż Copilot Brain się uruchomi i odśwież widok.';
+  }
+
+  return message || fallback;
+}
 
 function focusTerminalInput() {
   if (!terminalInput) return;
@@ -297,7 +306,7 @@ chatForm.addEventListener('submit', async e => {
     appendMessage('assistant', data.reply);
     await refresh();
   } catch (err) {
-    appendMessage('assistant', `Błąd: ${err.message}`);
+    appendMessage('assistant', `Błąd: ${formatErrorMessage(err, 'Chat error')}`);
   }
 });
 
@@ -357,7 +366,7 @@ terminalForm.addEventListener('submit', async e => {
     else { termLine(data.ok ? 'output' : 'error', data.output ?? 'No output.'); }
     if (res.ok) await refresh();
   } catch (err) {
-    termLine('error', err.message);
+    termLine('error', formatErrorMessage(err, 'Terminal error'));
   } finally {
     focusTerminalInput();
   }
@@ -527,7 +536,7 @@ settingsForm.addEventListener('submit', async e => {
     settingsHydrated = false;
     await refresh({ forceSettings: true });
   } catch (err) {
-    appendMessage('assistant', `Błąd zapisu: ${err.message}`);
+    appendMessage('assistant', `Błąd zapisu: ${formatErrorMessage(err, 'Settings error')}`);
   }
 });
 
@@ -539,7 +548,7 @@ refreshModelsButton.addEventListener('click', async () => {
     modelsBox.textContent = toJson(models);
     termLine('system', `Models loaded: ${models.models?.length ?? 0}`);
   } catch (err) {
-    termLine('error', `Models: ${err.message}`);
+    termLine('error', `Models: ${formatErrorMessage(err, 'Models error')}`);
   } finally {
     refreshModelsButton.disabled = false;
   }
@@ -556,8 +565,9 @@ testGithubButton.addEventListener('click', async () => {
     termLine('system', 'GitHub auth test OK.');
     await refresh();
   } catch (err) {
-    appendMessage('assistant', `GitHub auth failed: ${err.message}`);
-    termLine('error', `GitHub auth: ${err.message}`);
+    const message = formatErrorMessage(err, 'Auth error');
+    appendMessage('assistant', `GitHub auth failed: ${message}`);
+    termLine('error', `GitHub auth: ${message}`);
   } finally { testGithubButton.disabled = false; }
 });
 
@@ -596,8 +606,9 @@ async function startGitHubDeviceFlow() {
     if (devicePollTimer) clearInterval(devicePollTimer);
     devicePollTimer = setInterval(() => pollDeviceFlow(), interval);
   } catch (err) {
-    appendMessage('assistant', `Device flow error: ${err.message}`);
-    termLine('error', `Device flow: ${err.message}`);
+    const message = formatErrorMessage(err, 'Device flow error');
+    appendMessage('assistant', `Device flow error: ${message}`);
+    termLine('error', `Device flow: ${message}`);
   } finally {
     startDeviceFlowBtn.disabled = false;
   }
@@ -638,7 +649,7 @@ async function loadJson(url) {
 }
 async function tryLoad(url) {
   try { return { ok: true, data: await loadJson(url) }; }
-  catch (e) { return { ok: false, error: e.message }; }
+  catch (e) { return { ok: false, error: formatErrorMessage(e, 'Request failed') }; }
 }
 
 async function refresh(opts = {}) {
