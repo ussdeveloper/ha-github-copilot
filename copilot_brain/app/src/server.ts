@@ -21,7 +21,7 @@ import { createMcpRouter } from './mcp/server.js';
 import { ChatOrchestrator } from './chat/orchestrator.js';
 import { summarizeAddons, summarizeStates } from './prompt/template.js';
 
-const APP_VERSION = '0.4.0';
+const APP_VERSION = '0.4.1';
 const APP_STAGE = 'experimental';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -641,7 +641,7 @@ async function bootstrap() {
       if (!clientId) {
         return response.status(400).json({
           ok: false,
-          error: 'github_client_id is not configured. Set it in add-on options or Settings.',
+          error: 'github_client_id is not configured. Open Settings in the UI and set GitHub Client ID first.',
         });
       }
 

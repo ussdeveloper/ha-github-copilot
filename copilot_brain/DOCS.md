@@ -1,6 +1,6 @@
 # Copilot Brain
 
-> Version `0.4.0`  
+> Version `0.4.1`  
 > Stage: **experimental / in progress**
 
 Copilot Brain adds a GitHub-backed operator console to Home Assistant. It provides:
@@ -67,7 +67,7 @@ Two methods are available:
 
 - `Approval mode` — `explicit` (requires approval for mutations) or `read-only`
 - `Entity allowlist` — entities the assistant may operate on
-- `Service allowlist` — services the assistant may call (30 defaults included: light, switch, script, scene, climate, cover, fan, media_player, automation, input_boolean)
+- `Service allowlist` — services the assistant may call (29 defaults included: light, switch, script, scene, climate, cover, fan, media_player, automation, input_boolean)
 - `Addon allowlist` — add-ons the assistant may inspect/use
 - `System prompt` — system prompt template injected into GitHub Models chat
 

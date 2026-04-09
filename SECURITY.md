@@ -14,7 +14,7 @@
 ## Safe workflows
 
 - Use `.env.example` as a placeholder template for local development.
-- Configure production secrets through Home Assistant add-on options and/or secret facilities, not in tracked files.
+- Configure production secrets through the built-in Copilot Brain UI and/or Home Assistant secret facilities, not in tracked files.
 - Review diffs before every commit.
 - Rotate any secret immediately if it was accidentally written to a tracked file or pushed to a remote.
 

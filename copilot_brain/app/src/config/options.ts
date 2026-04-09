@@ -5,7 +5,7 @@ import { z } from "zod";
 
 loadDotEnv({ path: path.resolve(process.cwd(), "../../.env") });
 
-const PLACEHOLDER_VALUES = new Set(["", "replace-me", "change-me", "todo@example.com"]);
+const PLACEHOLDER_VALUES = new Set(["", "replace-me", "change-me", "todo@example.com", "null", "undefined"]);
 
 const DEFAULT_SERVICE_ALLOWLIST = [
   "light.turn_on", "light.turn_off", "light.toggle",
@@ -77,7 +77,7 @@ function hasMeaningfulValue(value: unknown): value is string {
   return typeof value === "string" && !PLACEHOLDER_VALUES.has(value.trim());
 }
 
-function preferOptionOverEnv(optionValue: string | undefined, envValue: string | undefined): string | undefined {
+function preferOptionOverEnv(optionValue: unknown, envValue: unknown): string | undefined {
   if (hasMeaningfulValue(optionValue)) {
     return optionValue;
   }
@@ -87,6 +87,51 @@ function preferOptionOverEnv(optionValue: string | undefined, envValue: string |
   }
 
   return undefined;
+}
+
+function normalizeApprovalMode(value: unknown): "explicit" | "read-only" | undefined {
+  if (value === "explicit" || value === "read-only") {
+    return value;
+  }
+
+  return undefined;
+}
+
+function normalizeStringArray(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  return value.map((entry) => String(entry).trim()).filter(Boolean);
+}
+
+function sanitizeOptions(raw: unknown): PartialOptions {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return {};
+  }
+
+  const options = raw as Record<string, unknown>;
+
+  return {
+    github_app_id: hasMeaningfulValue(options.github_app_id) ? options.github_app_id : undefined,
+    github_app_installation_id: hasMeaningfulValue(options.github_app_installation_id)
+      ? options.github_app_installation_id
+      : undefined,
+    github_app_private_key: hasMeaningfulValue(options.github_app_private_key)
+      ? options.github_app_private_key
+      : undefined,
+    github_client_id: hasMeaningfulValue(options.github_client_id) ? options.github_client_id : undefined,
+    github_oauth_token: hasMeaningfulValue(options.github_oauth_token) ? options.github_oauth_token : undefined,
+    github_model: hasMeaningfulValue(options.github_model) ? options.github_model : undefined,
+    mcp_auth_token: hasMeaningfulValue(options.mcp_auth_token) ? options.mcp_auth_token : undefined,
+    approval_mode: normalizeApprovalMode(options.approval_mode),
+    system_prompt_template: hasMeaningfulValue(options.system_prompt_template)
+      ? options.system_prompt_template
+      : undefined,
+    entity_allowlist: normalizeStringArray(options.entity_allowlist),
+    service_allowlist: normalizeStringArray(options.service_allowlist),
+    addon_allowlist: normalizeStringArray(options.addon_allowlist),
+  };
 }
 
 export function resolveOptionsPath(): string {
@@ -109,7 +154,7 @@ export function loadOptionsJson(): PartialOptions {
 
   try {
     const raw = readFileSync(optionsPath, "utf8");
-    return JSON.parse(raw) as PartialOptions;
+    return sanitizeOptions(JSON.parse(raw));
   } catch {
     return {};
   }
@@ -148,7 +193,7 @@ export function loadAppConfig(): AppConfig {
   return appConfigSchema.parse({
     port: process.env.PORT,
     mcpPort: process.env.MCP_PORT,
-    approvalMode: preferOptionOverEnv(options.approval_mode, process.env.APPROVAL_MODE),
+    approvalMode: normalizeApprovalMode(options.approval_mode) ?? normalizeApprovalMode(process.env.APPROVAL_MODE) ?? "explicit",
     githubAppId: preferOptionOverEnv(options.github_app_id, process.env.GITHUB_APP_ID),
     githubAppInstallationId: preferOptionOverEnv(
       options.github_app_installation_id,

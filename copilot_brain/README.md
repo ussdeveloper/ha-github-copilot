@@ -17,6 +17,6 @@ This add-on is **in progress** and currently published as an **experimental** bu
 
 - Do not commit real secrets.
 - Do not commit `.env`, PEM keys, tokens, `/data`, or `.data` contents.
-- Use the add-on options or local untracked files for credentials.
+- Configure credentials from the built-in Web UI, or use local untracked files only for local development.
 
 See `DOCS.md` for setup and usage details.

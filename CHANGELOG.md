@@ -3,12 +3,19 @@
 All notable changes to the **Copilot Brain** Home Assistant add-on are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic Versioning](https://semver.org/).
 
+## [0.4.1] — 2026-04-09
+
+### Fixed
+- **Startup crash after zero-config migration** — the add-on no longer reads removed HA config keys via `bashio::config`, which previously produced `APPROVAL_MODE="null"` and crashed Zod validation.
+- Legacy `null`, `"null"`, and invalid values in `/data/options.json` are now sanitized and safely ignored.
+- Docker image metadata/version labels updated to `0.4.1` so Home Assistant can detect and rebuild the latest release correctly.
+
 ## [0.4.0] — 2026-04-09
 
 ### Changed
 - **Zero config.yaml** — removed ALL `options:` and `schema:` from config.yaml. The add-on has no HA configuration page.
 - All settings (GitHub credentials, OAuth, model, allowlists, MCP token, etc.) are configured entirely from the built-in UI (File → Settings).
-- Default service allowlist (30 services) baked into the application code — works out of the box without any configuration.
+- Default service allowlist (29 services) baked into the application code — works out of the box without any configuration.
 - Translations simplified — no more configuration field descriptions.
 
 ### Removed
