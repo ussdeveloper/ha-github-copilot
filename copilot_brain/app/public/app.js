@@ -1,4 +1,4 @@
-/* ═══  Copilot Brain 0.4.8 — frontend  ═══ */
+/* ═══  Copilot Brain 0.4.9 — frontend  ═══ */
 
 // ── API base (handles HA ingress proxy) ──
 const API_BASE = (() => {
@@ -514,6 +514,13 @@ settingsForm.addEventListener('submit', async e => {
     mcpTokenInput.value = ''; githubPrivateKeyInput.value = ''; githubOauthTokenInput.value = '';
     settingsHydrated = false;
     await refresh({ forceSettings: true });
+    // Auto-reload models after save (token may have changed)
+    try {
+      const models = await loadJson(apiUrl('api/models'));
+      renderModelOptions(models.models, githubModelInput.dataset.savedValue || models.selected);
+      if (modelsBox) modelsBox.textContent = toJson(models);
+      termLine('system', `Models refreshed: ${models.models?.length ?? 0}`);
+    } catch { /* ignore */ }
   } catch (err) {
     appendMessage('assistant', `Błąd zapisu: ${formatErrorMessage(err, 'Settings error')}`);
   }
