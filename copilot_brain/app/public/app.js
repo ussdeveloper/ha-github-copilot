@@ -1,4 +1,4 @@
-/* ═══  Copilot Brain 0.4.6 — frontend  ═══ */
+/* ═══  Copilot Brain 0.4.7 — frontend  ═══ */
 
 // ── API base (handles HA ingress proxy) ──
 const API_BASE = (() => {
@@ -61,12 +61,9 @@ const addonAllowlistInput   = $('addonAllowlistInput');
 const systemPromptInput     = $('systemPromptInput');
 const testGithubButton      = $('testGithubButton');
 
-const githubClientIdInput     = $('githubClientIdInput');
-const startDeviceFlowBtn      = $('startDeviceFlowBtn');
-const deviceFlowStatus        = $('deviceFlowStatus');
-const deviceFlowCode          = $('deviceFlowCode');
-const deviceFlowLink          = $('deviceFlowLink');
-const deviceFlowMsg           = $('deviceFlowMsg');
+const githubClientIdInput     = null; // removed (Device Flow replaced by PAT)
+const githubOauthTokenInput   = $('githubOauthTokenInput');
+const startDeviceFlowBtn      = null; // removed
 
 const configBox      = $('configBox');
 const githubStatusBox= $('githubStatusBox');
@@ -88,7 +85,6 @@ let settingsHydrated = false;
 let terminalHistory = [];
 let predefinedCommands = [];
 let terminalHistoryCursor = -1;
-let devicePollTimer = null;
 
 // ── Helpers ──
 const toJson = (v) => JSON.stringify(v, null, 2);
@@ -149,12 +145,7 @@ function renderModelOptions(models, preferredModel) {
   githubModelInput.value = options.includes(currentValue) ? currentValue : options[0];
 }
 
-function setDeviceFlowNotice(message, tone = 'muted', code = '') {
-  deviceFlowStatus.classList.remove('hidden');
-  deviceFlowCode.textContent = code;
-  deviceFlowMsg.textContent = message;
-  deviceFlowMsg.style.color = `var(--${tone})`;
-}
+function setDeviceFlowNotice() {} // no-op (Device Flow removed)
 
 // ══════════════════════════════════════════
 //  MENUS
@@ -200,10 +191,10 @@ openSettingsItem.addEventListener('click', () => {
   githubModelInput.focus();
 });
 
-authorizeGithubItem.addEventListener('click', async () => {
+authorizeGithubItem.addEventListener('click', () => {
   openModal(settingsModal, settingsModalBackdrop);
   githubOauthSection?.scrollIntoView({ block: 'start', behavior: 'smooth' });
-  await startGitHubDeviceFlow();
+  githubOauthTokenInput?.focus();
 });
 
 openCommandsItem.addEventListener('click', () => openModal(commandsModal, commandsModalBackdrop));
@@ -467,7 +458,6 @@ function hydrateSettings(s) {
   approvalModeInput.value = s.effectiveConfig.approvalMode ?? 'explicit';
   githubAppIdInput.value = s.effectiveConfig.githubAppId ?? '';
   githubInstallationIdInput.value = s.effectiveConfig.githubAppInstallationId ?? '';
-  githubClientIdInput.value = s.effectiveConfig.githubClientId ?? '';
   entityAllowlistInput.value = listToText(s.effectiveConfig.entityAllowlist);
   serviceAllowlistInput.value = listToText(s.effectiveConfig.serviceAllowlist);
   addonAllowlistInput.value = listToText(s.effectiveConfig.addonAllowlist);
@@ -511,7 +501,7 @@ settingsForm.addEventListener('submit', async e => {
     github_app_id: githubAppIdInput.value.trim(),
     github_app_installation_id: githubInstallationIdInput.value.trim(),
     github_app_private_key: githubPrivateKeyInput.value.trim(),
-    github_client_id: githubClientIdInput.value.trim(),
+    github_oauth_token: githubOauthTokenInput.value.trim(),
     entity_allowlist: entityAllowlistInput.value,
     service_allowlist: serviceAllowlistInput.value,
     addon_allowlist: addonAllowlistInput.value,
@@ -526,7 +516,7 @@ settingsForm.addEventListener('submit', async e => {
     if (!res.ok) throw new Error(data.error ?? 'Settings error');
     appendMessage('assistant', 'Ustawienia zapisane.');
     termLine('system', 'Runtime settings updated.');
-    mcpTokenInput.value = ''; githubPrivateKeyInput.value = '';
+    mcpTokenInput.value = ''; githubPrivateKeyInput.value = ''; githubOauthTokenInput.value = '';
     settingsHydrated = false;
     await refresh({ forceSettings: true });
   } catch (err) {
@@ -564,60 +554,6 @@ testGithubButton.addEventListener('click', async () => {
     termLine('error', `GitHub auth: ${message}`);
   } finally { testGithubButton.disabled = false; }
 });
-
-// ══════════════════════════════════════════
-//  GITHUB DEVICE FLOW (OAuth)
-// ══════════════════════════════════════════
-async function startGitHubDeviceFlow() {
-  try {
-    startDeviceFlowBtn.disabled = true;
-    const res = await fetch(apiUrl('api/auth/github/device-code'), { method: 'POST' });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error ?? 'Device flow error');
-
-    deviceFlowCode.textContent = data.userCode;
-    deviceFlowLink.href = data.verificationUri;
-    setDeviceFlowNotice('Oczekiwanie na autoryzację…', 'muted', data.userCode);
-
-    termLine('system', `GitHub OAuth: wpisz kod ${data.userCode} na ${data.verificationUri}`);
-
-    // Start polling
-    const interval = (data.interval || 5) * 1000;
-    if (devicePollTimer) clearInterval(devicePollTimer);
-    devicePollTimer = setInterval(() => pollDeviceFlow(), interval);
-  } catch (err) {
-    const message = formatErrorMessage(err, 'Device flow error');
-    setDeviceFlowNotice(message, 'danger', '×');
-    termLine('error', `Device flow: ${message}`);
-  } finally {
-    startDeviceFlowBtn.disabled = false;
-  }
-}
-
-startDeviceFlowBtn.addEventListener('click', startGitHubDeviceFlow);
-
-async function pollDeviceFlow() {
-  try {
-    const res = await fetch(apiUrl('api/auth/github/device-poll'), { method: 'POST' });
-    const data = await res.json();
-
-    if (data.status === 'complete') {
-      clearInterval(devicePollTimer); devicePollTimer = null;
-      setDeviceFlowNotice('✓ Autoryzacja zakończona!', 'success', '✓');
-      appendMessage('assistant', 'GitHub OAuth autoryzacja zakończona pomyślnie!');
-      termLine('system', 'GitHub OAuth: token saved.');
-      await refresh({ forceSettings: true });
-    } else if (data.status === 'expired' || data.status === 'error') {
-      clearInterval(devicePollTimer); devicePollTimer = null;
-      setDeviceFlowNotice(data.error ?? 'Wygasło — spróbuj ponownie.', 'danger', '×');
-    } else if (data.status === 'slow_down') {
-      // Handled server-side by increasing interval
-    }
-    // 'pending' — keep polling
-  } catch {
-    // Network error — keep polling
-  }
-}
 
 // ══════════════════════════════════════════
 //  DATA REFRESH
