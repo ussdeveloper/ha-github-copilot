@@ -1,4 +1,4 @@
-/* ═══  Copilot Brain 0.4.5 — frontend  ═══ */
+/* ═══  Copilot Brain 0.4.6 — frontend  ═══ */
 
 // ── API base (handles HA ingress proxy) ──
 const API_BASE = (() => {
@@ -203,13 +203,7 @@ openSettingsItem.addEventListener('click', () => {
 authorizeGithubItem.addEventListener('click', async () => {
   openModal(settingsModal, settingsModalBackdrop);
   githubOauthSection?.scrollIntoView({ block: 'start', behavior: 'smooth' });
-  if (githubClientIdInput.value.trim()) {
-    await startGitHubDeviceFlow();
-    return;
-  }
-
-  setDeviceFlowNotice('Wpisz Client ID ze swojej GitHub App lub OAuth App, a następnie kliknij Authorize.', 'warning', '—');
-  githubClientIdInput.focus();
+  await startGitHubDeviceFlow();
 });
 
 openCommandsItem.addEventListener('click', () => openModal(commandsModal, commandsModalBackdrop));
@@ -575,22 +569,8 @@ testGithubButton.addEventListener('click', async () => {
 //  GITHUB DEVICE FLOW (OAuth)
 // ══════════════════════════════════════════
 async function startGitHubDeviceFlow() {
-  const clientId = githubClientIdInput.value.trim();
-  if (!clientId) {
-    setDeviceFlowNotice('Wpisz Client ID ze swojej GitHub App lub OAuth App, a następnie kliknij Authorize.', 'warning', '—');
-    githubClientIdInput.focus();
-    return;
-  }
-
   try {
     startDeviceFlowBtn.disabled = true;
-    const saveRes = await fetch(apiUrl('api/settings'), {
-      method: 'PUT', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ github_client_id: clientId }),
-    });
-    const saveData = await saveRes.json().catch(() => ({}));
-    if (!saveRes.ok) throw new Error(saveData.error ?? 'Nie udało się zapisać GitHub Client ID.');
-
     const res = await fetch(apiUrl('api/auth/github/device-code'), { method: 'POST' });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error ?? 'Device flow error');
@@ -607,7 +587,7 @@ async function startGitHubDeviceFlow() {
     devicePollTimer = setInterval(() => pollDeviceFlow(), interval);
   } catch (err) {
     const message = formatErrorMessage(err, 'Device flow error');
-    appendMessage('assistant', `Device flow error: ${message}`);
+    setDeviceFlowNotice(message, 'danger', '×');
     termLine('error', `Device flow: ${message}`);
   } finally {
     startDeviceFlowBtn.disabled = false;

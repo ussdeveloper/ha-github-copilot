@@ -124,7 +124,7 @@
           </span>
           <span class='sb-item'>
             <span class='mdi mdi-tag-outline'></span>
-            <span id='versionLabel'>v0.4.5</span>
+            <span id='versionLabel'>v0.4.6</span>
           </span>
         </div>
       </footer>
@@ -143,27 +143,17 @@
       <div class='modal-body'>
         <div class='settings-section' id='githubOauthSection'>
           <div class='settings-section-header'>
-            <h3><span class='mdi mdi-github'></span> Authorize with GitHub (OAuth)</h3>
+            <h3><span class='mdi mdi-github'></span> Autoryzacja GitHub</h3>
+            <button id='startDeviceFlowBtn' type='button' class='secondary-button'>
+              <span class='mdi mdi-login'></span> Authorize
+            </button>
           </div>
           <p class='muted-text' style='font-size:12px;margin-bottom:8px'>
-            Wpisz <strong>Client ID</strong> swojej GitHub App lub OAuth App, a następnie kliknij <strong>Authorize</strong>.
-            Otworzy się kod — wpisz go na stronie
-            <a href='https://github.com/login/device' target='_blank' rel='noopener' style='color:var(--accent-2)'>github.com/login/device</a>
-            i zatwierdź dostęp. Client ID znajdziesz tu:
-            GitHub&nbsp;→ Settings&nbsp;→ Developer settings&nbsp;→ GitHub Apps&nbsp;/ OAuth Apps&nbsp;→ Twoja aplikacja&nbsp;→ Client ID.
+            Kliknij <strong>Authorize</strong> — aplikacja pobierze kod z GitHub.
+            Otwórz <a href='https://github.com/login/device' target='_blank' rel='noopener'
+              style='color:var(--accent-2)'>github.com/login/device</a>,
+            wpisz kod i zatwierdź. To wszystko.
           </p>
-          <div class='form-grid'>
-            <label>
-              <span>GitHub Client ID</span>
-              <input id='githubClientIdInput' type='text' placeholder='Iv1.xxxxxxxxxxxx lub Ov23li…' />
-              <small class='field-help'>Wymagany do GitHub Device Flow. Utwórz GitHub App lub OAuth App i skopiuj Client ID.</small>
-            </label>
-            <label style='display:flex;align-items:flex-end'>
-              <button id='startDeviceFlowBtn' type='button' class='secondary-button' style='width:100%'>
-                <span class='mdi mdi-login'></span> Authorize
-              </button>
-            </label>
-          </div>
           <div id='deviceFlowStatus' class='hidden' style='margin-top:8px;padding:10px;background:var(--bg);border:1px solid var(--line)'>
             <div style='font-size:13px;margin-bottom:6px'>
               Otwórz <a id='deviceFlowLink' href='https://github.com/login/device' target='_blank' rel='noopener'
@@ -201,6 +191,10 @@
             <label><span>GitHub App ID</span><input id='githubAppIdInput' type='text' /></label>
             <label><span>Installation ID</span><input id='githubInstallationIdInput' type='text' /></label>
             <label class='full-width'><span>GitHub private key (base64 / PEM)</span><textarea id='githubPrivateKeyInput' rows='3'></textarea></label>
+            <label class='full-width'><span>GitHub OAuth App — Client ID</span>
+              <input id='githubClientIdInput' type='text' placeholder='Iv1.xxxxxxxxxxxx' />
+              <small class='field-help'>Wymagany do przycisku „Authorize” wyżej. Utwórz GitHub OAuth App (Settings → Developer settings → OAuth Apps), włącz Device Flow, skopiuj Client ID.</small>
+            </label>
             <label><span>Entity allowlist</span><textarea id='entityAllowlistInput' rows='3' placeholder='Jedna encja na linię'></textarea></label>
             <label><span>Service allowlist</span><textarea id='serviceAllowlistInput' rows='3' placeholder='Jedna usługa na linię'></textarea></label>
             <label class='full-width'><span>Addon allowlist</span><textarea id='addonAllowlistInput' rows='2'></textarea></label>

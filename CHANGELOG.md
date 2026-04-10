@@ -3,6 +3,13 @@
 All notable changes to the **Copilot Brain** Home Assistant add-on are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic Versioning](https://semver.org/).
 
+## [0.4.6] — 2026-04-10
+
+### Changed
+- **GitHub Authorization redesigned**: sekcja OAuth zawiera teraz TYLKO przycisk `Authorize`. Kliknięcie wysyła zapytanie do GitHub i pokazuje kod — użytkownik wpisuje go na github.com/login/device. Zero nacisku na Client ID w tym widoku.
+- **Client ID przeniesiony** do dolnej sekcji konfiguracyjnej (ustawiany raz przez administratora), nie do interfejsu autoryzacji.
+- Błąd backendu (brak Client ID) wyświetla teraz czytelny komunikat wskazujący gdzie go wpisać w ustawieniach.
+
 ## [0.4.5] — 2026-04-09
 
 ### Changed

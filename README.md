@@ -1,6 +1,6 @@
 # Home Assistant GitHub Copilot Add-on Repository
 
-> **Version:** `0.4.5`
+> **Version:** `0.4.6`
 >
 > **Status:** experimental / in progress — safe to explore, not ready to call “done”.
 

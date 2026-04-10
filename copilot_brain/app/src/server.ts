@@ -21,7 +21,7 @@ import { createMcpRouter } from './mcp/server.js';
 import { ChatOrchestrator } from './chat/orchestrator.js';
 import { summarizeAddons, summarizeStates } from './prompt/template.js';
 
-const APP_VERSION = '0.4.5';
+const APP_VERSION = '0.4.6';
 const APP_STAGE = 'experimental';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -684,7 +684,7 @@ async function bootstrap() {
       if (!clientId) {
         return response.status(400).json({
           ok: false,
-          error: 'github_client_id is not configured. Open Settings in the UI, enter GitHub Client ID, then start OAuth.',
+          error: 'GitHub OAuth App Client ID nie jest skonfigurowany. Otwórz Settings → sekcja konfiguracji → GitHub OAuth App — Client ID, wpisz Client ID swojej GitHub OAuth App i zapisz.',
         });
       }
 

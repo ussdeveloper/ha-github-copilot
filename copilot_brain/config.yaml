@@ -1,5 +1,5 @@
 name: Copilot Brain
-version: "0.4.5"
+version: "0.4.6"
 slug: copilot_brain
 description: >-
   Experimental GitHub-powered AI control plane for Home Assistant with chat, HA terminal, and MCP endpoint.

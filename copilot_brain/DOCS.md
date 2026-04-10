@@ -1,6 +1,6 @@
 # Copilot Brain
 
-> Version `0.4.5`  
+> Version `0.4.6`  
 > Stage: **experimental / in progress**
 
 Copilot Brain adds a GitHub-backed operator console to Home Assistant. It provides:
