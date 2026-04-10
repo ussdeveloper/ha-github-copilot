@@ -162,12 +162,6 @@
         </div>
 
         <div class='settings-section'>
-          <div class='settings-section-header'>
-            <h3>Ręczna konfiguracja GitHub App</h3>
-            <button id='testGithubButton' type='button' class='secondary-button'>
-              <span class='mdi mdi-check-network-outline'></span> Test Auth
-            </button>
-          </div>
 
         <form id='settingsForm' class='settings-form'>
           <div class='form-grid'>
@@ -184,10 +178,6 @@
               </select>
             </label>
             <label><span>MCP token</span><input id='mcpTokenInput' type='password' placeholder='Zostaw puste aby zachować' /></label>
-            <label><span>GitHub App ID</span><input id='githubAppIdInput' type='text' /></label>
-            <label><span>Installation ID</span><input id='githubInstallationIdInput' type='text' /></label>
-            <label class='full-width'><span>GitHub private key (base64 / PEM)</span><textarea id='githubPrivateKeyInput' rows='3'></textarea></label>
-
             <label><span>Entity allowlist</span><textarea id='entityAllowlistInput' rows='3' placeholder='Jedna encja na linię'></textarea></label>
             <label><span>Service allowlist</span><textarea id='serviceAllowlistInput' rows='3' placeholder='Jedna usługa na linię'></textarea></label>
             <label class='full-width'><span>Addon allowlist</span><textarea id='addonAllowlistInput' rows='2'></textarea></label>

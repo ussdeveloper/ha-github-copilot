@@ -1,4 +1,4 @@
-/* ═══  Copilot Brain 0.4.7 — frontend  ═══ */
+/* ═══  Copilot Brain 0.4.8 — frontend  ═══ */
 
 // ── API base (handles HA ingress proxy) ──
 const API_BASE = (() => {
@@ -52,18 +52,18 @@ const githubModelInput      = $('githubModelInput');
 const refreshModelsButton   = $('refreshModelsButton');
 const approvalModeInput     = $('approvalModeInput');
 const mcpTokenInput         = $('mcpTokenInput');
-const githubAppIdInput      = $('githubAppIdInput');
-const githubInstallationIdInput = $('githubInstallationIdInput');
-const githubPrivateKeyInput = $('githubPrivateKeyInput');
 const entityAllowlistInput  = $('entityAllowlistInput');
 const serviceAllowlistInput = $('serviceAllowlistInput');
 const addonAllowlistInput   = $('addonAllowlistInput');
 const systemPromptInput     = $('systemPromptInput');
-const testGithubButton      = $('testGithubButton');
+const testGithubButton      = null; // removed
 
 const githubClientIdInput     = null; // removed (Device Flow replaced by PAT)
 const githubOauthTokenInput   = $('githubOauthTokenInput');
 const startDeviceFlowBtn      = null; // removed
+const githubAppIdInput        = null; // removed (GitHub App config removed)
+const githubInstallationIdInput = null; // removed
+const githubPrivateKeyInput   = null; // removed
 
 const configBox      = $('configBox');
 const githubStatusBox= $('githubStatusBox');
@@ -456,8 +456,6 @@ function setSbStatus(el, ok, label) { if (el) el.textContent = label; }
 function hydrateSettings(s) {
   githubModelInput.dataset.savedValue = s.effectiveConfig.githubModelsDefaultModel ?? 'openai/gpt-4.1';
   approvalModeInput.value = s.effectiveConfig.approvalMode ?? 'explicit';
-  githubAppIdInput.value = s.effectiveConfig.githubAppId ?? '';
-  githubInstallationIdInput.value = s.effectiveConfig.githubAppInstallationId ?? '';
   entityAllowlistInput.value = listToText(s.effectiveConfig.entityAllowlist);
   serviceAllowlistInput.value = listToText(s.effectiveConfig.serviceAllowlist);
   addonAllowlistInput.value = listToText(s.effectiveConfig.addonAllowlist);
@@ -498,9 +496,6 @@ settingsForm.addEventListener('submit', async e => {
     github_model: githubModelInput.value.trim(),
     approval_mode: approvalModeInput.value,
     mcp_auth_token: mcpTokenInput.value.trim(),
-    github_app_id: githubAppIdInput.value.trim(),
-    github_app_installation_id: githubInstallationIdInput.value.trim(),
-    github_app_private_key: githubPrivateKeyInput.value.trim(),
     github_oauth_token: githubOauthTokenInput.value.trim(),
     entity_allowlist: entityAllowlistInput.value,
     service_allowlist: serviceAllowlistInput.value,
@@ -536,23 +531,6 @@ refreshModelsButton.addEventListener('click', async () => {
   } finally {
     refreshModelsButton.disabled = false;
   }
-});
-
-testGithubButton.addEventListener('click', async () => {
-  try {
-    testGithubButton.disabled = true;
-    const res = await fetch(apiUrl('api/github/test-auth'), { method: 'POST' });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error ?? 'Auth error');
-    appendMessage('assistant',
-      `GitHub auth OK. Token: ${data.installationTokenIssued ? 'yes' : 'no'}. Models: ${data.modelAccess?.modelCount ?? 0}.`);
-    termLine('system', 'GitHub auth test OK.');
-    await refresh();
-  } catch (err) {
-    const message = formatErrorMessage(err, 'Auth error');
-    appendMessage('assistant', `GitHub auth failed: ${message}`);
-    termLine('error', `GitHub auth: ${message}`);
-  } finally { testGithubButton.disabled = false; }
 });
 
 // ══════════════════════════════════════════
