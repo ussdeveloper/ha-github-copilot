@@ -1,4 +1,4 @@
-/* ═══  Copilot Brain 0.4.16 — frontend  ═══ */
+/* ═══  Copilot Brain 0.4.17 — frontend  ═══ */
 
 // ── API base (handles HA ingress proxy) ──
 const API_BASE = (() => {
