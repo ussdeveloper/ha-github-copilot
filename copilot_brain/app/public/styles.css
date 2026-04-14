@@ -250,6 +250,38 @@ code{display:inline-flex;align-items:center;min-height:1.3rem;padding:0 .3rem;ba
 .model-checkbox-item .model-tier-badge.warning{background:#5a4200;color:#ffe8a3;border-color:#d4a72c}
 .model-checkbox-item .model-tier-badge.limited{background:#5a1f1f;color:#ffd8d8;border-color:#ff7b72}
 
+/* ── Approvals ── */
+.approvals-list{display:grid;gap:8px}
+.approval-card{
+  padding:10px 12px;background:var(--bg);border:1px solid var(--line);border-radius:3px;
+}
+.approval-card.pending{border-left:3px solid var(--accent)}
+.approval-card.resolved{opacity:.6}
+.approval-card-header{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px}
+.approval-type-badge{
+  font-size:10px;padding:1px 8px;border-radius:999px;background:var(--bg-4);border:1px solid var(--line);color:var(--text);
+}
+.approval-status{font-size:11px;color:var(--muted)}
+.approval-status.pending{color:var(--accent)}
+.approval-status.approved{color:#22c55e}
+.approval-status.rejected{color:#ef4444}
+.approval-time{font-size:10px;color:var(--muted);margin-left:auto}
+.approval-summary{font-size:12px;margin-bottom:4px}
+.approval-payload{
+  font-size:11px;padding:6px 8px;margin:0;background:var(--bg-2);border:1px solid var(--line);
+  max-height:80px;overflow:auto;white-space:pre-wrap;word-break:break-all;
+}
+.approval-card-actions{display:flex;gap:8px;margin-top:8px}
+.approval-card-actions .primary-button{font-size:12px;height:28px;padding:0 12px}
+.approval-card-actions .reject-button{font-size:12px;height:28px;padding:0 12px;border-color:#b91c1c;color:#fca5a5}
+.approval-card-actions .reject-button:hover{background:#b91c1c;color:#fff}
+.nav-badge{
+  display:inline-flex;align-items:center;justify-content:center;
+  min-width:16px;height:16px;padding:0 4px;font-size:10px;
+  border-radius:999px;background:transparent;color:transparent;
+}
+.nav-badge.has-items{background:var(--accent);color:#fff}
+
 .panel-title{display:flex;align-items:center;gap:.5rem}
 .muted-text{color:var(--muted);font-size:12px;margin:0}
 .hidden{display:none!important}

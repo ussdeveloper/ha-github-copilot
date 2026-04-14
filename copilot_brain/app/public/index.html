@@ -146,6 +146,9 @@
           <button type='button' class='settings-nav-item' data-section='models'>
             <span class='mdi mdi-atom-variant'></span> Models
           </button>
+          <button type='button' class='settings-nav-item' data-section='approvals'>
+            <span class='mdi mdi-check-decagram-outline'></span> Approvals <span class='nav-badge' id='approvalNavBadge'></span>
+          </button>
         </nav>
 
         <!-- RIGHT: section content -->
@@ -196,6 +199,22 @@
               <button type='button' class='primary-button' id='saveModelsButton'>
                 <span class='mdi mdi-content-save-outline'></span> Zapisz wybór
               </button>
+            </div>
+          </div>
+
+          <!-- ── Approvals section ── -->
+          <div class='settings-page' id='settingsPageApprovals' data-section='approvals'>
+            <h3><span class='mdi mdi-check-decagram-outline'></span> Oczekujące zatwierdzenia</h3>
+            <p class='muted-text' style='font-size:12px;margin-bottom:12px'>
+              Gdy agent chce wywołać usługę HA, uruchomić komendę shell lub zmodyfikować plik, akcja trafia tutaj do zatwierdzenia.
+            </p>
+            <div class='settings-actions' style='margin-bottom:12px'>
+              <button type='button' class='secondary-button' id='refreshApprovalsButton'>
+                <span class='mdi mdi-refresh'></span> Odśwież
+              </button>
+            </div>
+            <div id='approvalsListUI' class='approvals-list'>
+              <p class='muted-text'>Ładowanie…</p>
             </div>
           </div>
 

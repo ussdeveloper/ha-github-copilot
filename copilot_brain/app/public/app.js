@@ -1,4 +1,4 @@
-/* ═══  Copilot Brain 0.4.17 — frontend  ═══ */
+/* ═══  Copilot Brain 0.4.18 — frontend  ═══ */
 
 // ── API base (handles HA ingress proxy) ──
 const API_BASE = (() => {
@@ -531,7 +531,119 @@ function hydrateSettings(s) {
   settingsHydrated = true;
 }
 
-function renderApprovals() {} // removed for now
+// ── Approvals UI ──
+const approvalsListUI = $('approvalsListUI');
+const approvalNavBadge = $('approvalNavBadge');
+const refreshApprovalsButton = $('refreshApprovalsButton');
+
+function renderApprovalsUI(entries) {
+  const pending = entries.filter(e => e.status === 'pending');
+  // Update badge
+  if (approvalNavBadge) {
+    approvalNavBadge.textContent = pending.length ? String(pending.length) : '';
+    approvalNavBadge.classList.toggle('has-items', pending.length > 0);
+  }
+  if (approvalCount) approvalCount.textContent = String(pending.length);
+
+  if (!approvalsListUI) return;
+  if (!entries.length) {
+    approvalsListUI.innerHTML = '<p class="muted-text">Brak oczekujących zatwierdzeń.</p>';
+    return;
+  }
+
+  approvalsListUI.innerHTML = '';
+  // Show pending first, then resolved (most recent first)
+  const sorted = [...entries].sort((a, b) => {
+    if (a.status === 'pending' && b.status !== 'pending') return -1;
+    if (b.status === 'pending' && a.status !== 'pending') return 1;
+    return new Date(b.createdAt) - new Date(a.createdAt);
+  });
+
+  for (const entry of sorted.slice(0, 50)) {
+    const card = document.createElement('div');
+    card.className = 'approval-card' + (entry.status === 'pending' ? ' pending' : ' resolved');
+
+    const typeLabel = {
+      service_call: 'Usługa HA',
+      shell_command: 'Shell',
+      workspace_mutation: 'Plik',
+    }[entry.type] || entry.type;
+
+    const statusLabel = {
+      pending: '⏳ Oczekuje',
+      approved: '✅ Zatwierdzono',
+      rejected: '❌ Odrzucono',
+    }[entry.status] || entry.status;
+
+    let payloadPreview = '';
+    try {
+      const p = entry.payload;
+      if (entry.type === 'service_call') payloadPreview = `${p.service} → ${(p.entityIds || []).join(', ')}`;
+      else if (entry.type === 'shell_command') payloadPreview = p.command || '';
+      else if (entry.type === 'workspace_mutation') payloadPreview = `${p.operation}: ${p.path}`;
+      else payloadPreview = JSON.stringify(p).slice(0, 200);
+    } catch { payloadPreview = '—'; }
+
+    card.innerHTML = `
+      <div class="approval-card-header">
+        <span class="approval-type-badge">${esc(typeLabel)}</span>
+        <span class="approval-status ${entry.status}">${statusLabel}</span>
+        <span class="approval-time">${new Date(entry.createdAt).toLocaleString()}</span>
+      </div>
+      <div class="approval-summary">${esc(entry.summary)}</div>
+      <pre class="approval-payload">${esc(payloadPreview)}</pre>
+    `;
+
+    if (entry.status === 'pending') {
+      const actions = document.createElement('div');
+      actions.className = 'approval-card-actions';
+      const approveBtn = document.createElement('button');
+      approveBtn.className = 'primary-button';
+      approveBtn.innerHTML = '<span class="mdi mdi-check"></span> Approve';
+      approveBtn.addEventListener('click', async () => {
+        approveBtn.disabled = true;
+        try {
+          await fetch(apiUrl(`api/approvals/${entry.id}/approve`), { method: 'POST' });
+          termLine('system', `Approved: ${entry.summary}`);
+          await loadApprovals();
+        } catch (err) { termLine('error', `Approve error: ${formatErrorMessage(err)}`); }
+      });
+      const rejectBtn = document.createElement('button');
+      rejectBtn.className = 'secondary-button reject-button';
+      rejectBtn.innerHTML = '<span class="mdi mdi-close"></span> Reject';
+      rejectBtn.addEventListener('click', async () => {
+        rejectBtn.disabled = true;
+        try {
+          await fetch(apiUrl(`api/approvals/${entry.id}/reject`), { method: 'POST' });
+          termLine('system', `Rejected: ${entry.summary}`);
+          await loadApprovals();
+        } catch (err) { termLine('error', `Reject error: ${formatErrorMessage(err)}`); }
+      });
+      actions.append(approveBtn, rejectBtn);
+      card.appendChild(actions);
+    }
+
+    approvalsListUI.appendChild(card);
+  }
+}
+
+async function loadApprovals() {
+  try {
+    const data = await loadJson(apiUrl('api/approvals'));
+    renderApprovalsUI(data.entries || []);
+  } catch {
+    if (approvalsListUI) approvalsListUI.innerHTML = '<p class="muted-text">Błąd ładowania zatwierdzeń.</p>';
+  }
+}
+
+if (refreshApprovalsButton) {
+  refreshApprovalsButton.addEventListener('click', () => loadApprovals());
+}
+
+// Auto-refresh approvals every 5 seconds
+setInterval(() => loadApprovals(), 5000);
+// Initial load
+loadApprovals();
 
 // ── Settings nav switching ──
 if (settingsNav) {
