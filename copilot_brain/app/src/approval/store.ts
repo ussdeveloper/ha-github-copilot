@@ -2,19 +2,52 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 
-export interface PendingApproval {
+export interface ServiceCallApprovalPayload {
+  service: string;
+  entityIds: string[];
+  serviceData: Record<string, unknown>;
+}
+
+export interface ShellCommandApprovalPayload {
+  command: string;
+}
+
+export type WorkspaceMutationApprovalPayload =
+  | {
+      operation: "write_file";
+      path: string;
+      content: string;
+      overwrite: boolean;
+    }
+  | {
+      operation: "replace_in_file";
+      path: string;
+      oldText: string;
+      newText: string;
+      replaceAll: boolean;
+    };
+
+interface PendingApprovalBase {
   id: string;
   createdAt: string;
-  type: "service_call";
   status: "pending" | "approved" | "rejected";
   summary: string;
-  payload: {
-    service: string;
-    entityIds: string[];
-    serviceData: Record<string, unknown>;
-  };
   resolvedAt?: string;
 }
+
+export type PendingApproval =
+  | (PendingApprovalBase & {
+      type: "service_call";
+      payload: ServiceCallApprovalPayload;
+    })
+  | (PendingApprovalBase & {
+      type: "shell_command";
+      payload: ShellCommandApprovalPayload;
+    })
+  | (PendingApprovalBase & {
+      type: "workspace_mutation";
+      payload: WorkspaceMutationApprovalPayload;
+    });
 
 export class ApprovalStore {
   private readonly filePath: string;
@@ -48,20 +81,44 @@ export class ApprovalStore {
     writeFileSync(this.filePath, JSON.stringify(entries, null, 2), "utf8");
   }
 
-  create(summary: string, payload: PendingApproval["payload"]): PendingApproval {
-    const entry: PendingApproval = {
+  private createEntry(entry: PendingApproval): PendingApproval {
+    const entries = this.readAll();
+    entries.push(entry);
+    this.writeAll(entries);
+    return entry;
+  }
+
+  createServiceCall(summary: string, payload: ServiceCallApprovalPayload): PendingApproval {
+    return this.createEntry({
       id: randomUUID(),
       createdAt: new Date().toISOString(),
       type: "service_call",
       status: "pending",
       summary,
       payload,
-    };
+    });
+  }
 
-    const entries = this.readAll();
-    entries.push(entry);
-    this.writeAll(entries);
-    return entry;
+  createShellCommand(summary: string, payload: ShellCommandApprovalPayload): PendingApproval {
+    return this.createEntry({
+      id: randomUUID(),
+      createdAt: new Date().toISOString(),
+      type: "shell_command",
+      status: "pending",
+      summary,
+      payload,
+    });
+  }
+
+  createWorkspaceMutation(summary: string, payload: WorkspaceMutationApprovalPayload): PendingApproval {
+    return this.createEntry({
+      id: randomUUID(),
+      createdAt: new Date().toISOString(),
+      type: "workspace_mutation",
+      status: "pending",
+      summary,
+      payload,
+    });
   }
 
   list(): PendingApproval[] {

@@ -49,7 +49,12 @@ export function createHomeAssistantTools(
         type: "object",
         properties: {
           service: { type: "string" },
-          entity_id: { type: ["string", "array"] },
+          entity_id: {
+            anyOf: [
+              { type: "string" },
+              { type: "array", items: { type: "string" } },
+            ],
+          },
           data: { type: "object" },
         },
         required: ["service"],
@@ -57,7 +62,7 @@ export function createHomeAssistantTools(
       execute: async (input) => {
         const call = prepareServiceCall(config, input);
         if (config.approvalMode === "explicit") {
-          const approval = approvals.create(call.summary, {
+          const approval = approvals.createServiceCall(call.summary, {
             service: call.service,
             entityIds: call.entityIds,
             serviceData: call.serviceData,

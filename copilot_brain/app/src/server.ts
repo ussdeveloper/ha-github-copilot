@@ -16,12 +16,15 @@ import { AuditStore } from './audit/store.js';
 import { ApprovalStore } from './approval/store.js';
 import { createHomeAssistantTools } from './tools/homeAssistantTools.js';
 import { executePreparedServiceCall, prepareServiceCall } from './tools/homeAssistantActions.js';
+import { createShellTools } from './tools/shellTools.js';
+import { executePreparedShellCommand } from './tools/shellActions.js';
+import { createWorkspaceTools, executeWorkspaceMutation } from './tools/workspaceTools.js';
 import { createNodeRedTools } from './tools/nodeRedTools.js';
 import { createMcpRouter } from './mcp/server.js';
 import { ChatOrchestrator } from './chat/orchestrator.js';
 import { summarizeAddons, summarizeStates } from './prompt/template.js';
 
-const APP_VERSION = '0.4.9';
+const APP_VERSION = '0.4.16';
 const APP_STAGE = 'experimental';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -82,6 +85,8 @@ function createRuntime(audit: AuditStore, approvals: ApprovalStore) {
   const tools = [
     ...createHomeAssistantTools(config, ha, audit, approvals),
     ...createNodeRedTools(config, ha, audit),
+    ...createShellTools(config, audit, approvals),
+    ...createWorkspaceTools(config, audit, approvals),
   ];
   const chat = new ChatOrchestrator(config, ha, models, audit, tools);
   const mcpRouter = createMcpRouter({ authToken: config.mcpAuthToken, tools, ha, version: APP_VERSION });
@@ -219,6 +224,7 @@ function renderTerminalHelp(): string {
     'approvals                   List pending approvals',
     'approve <id>                Approve pending action',
     'reject <id>                 Reject pending action',
+    'shell <command>             Queue shell command for approval',
     'audit [limit]               Show audit log',
     'models                      Available AI models',
     'github                      GitHub connection info',
@@ -236,13 +242,26 @@ async function approvePendingAction(id: string, runtime: Runtime, audit: AuditSt
     throw new Error(`Approval ${id} is already ${approval.status}.`);
   }
 
-  const call = prepareServiceCall(runtime.config, {
-    service: approval.payload.service,
-    entity_id: approval.payload.entityIds,
-    data: approval.payload.serviceData,
-  });
+  let result: unknown;
+  if (approval.type === 'service_call') {
+    const call = prepareServiceCall(runtime.config, {
+      service: approval.payload.service,
+      entity_id: approval.payload.entityIds,
+      data: approval.payload.serviceData,
+    });
 
-  const result = await executePreparedServiceCall(runtime.ha, audit, call);
+    result = await executePreparedServiceCall(runtime.ha, audit, call);
+  } else if (approval.type === 'shell_command') {
+    result = await executePreparedShellCommand(audit, {
+      command: approval.payload.command,
+      summary: approval.summary,
+    });
+  } else if (approval.type === 'workspace_mutation') {
+    result = await executeWorkspaceMutation(audit, approval.payload);
+  } else {
+    throw new Error(`Unsupported approval type: ${String((approval as { type?: string }).type ?? 'unknown')}`);
+  }
+
   const resolved = approvals.resolve(id, 'approved');
   audit.add('tool_call', `Approved pending action ${id}`, resolved.payload);
   return { approval: resolved, result };
@@ -397,6 +416,39 @@ async function executeTerminalCommand(
       };
     }
 
+    case 'shell': {
+      const shellCommand = trimmed.slice(action.length).trim();
+      if (!shellCommand) {
+        return { ok: false, output: 'Usage: shell <command>', exitCode: 64 };
+      }
+
+      const tool = runtime.tools.find((candidate) => candidate.name === 'shell.run');
+      if (!tool) {
+        throw new Error('shell.run tool is not available.');
+      }
+
+      const result = await tool.execute({ command: shellCommand });
+      const pending = result as { status?: string; approvalId?: string; summary?: string } | undefined;
+      if (pending?.status === 'pending_approval') {
+        return {
+          ok: true,
+          output: [
+            'Shell command queued for approval.',
+            `Approval ID: ${pending.approvalId ?? 'unknown'}`,
+            `Summary: ${pending.summary ?? shellCommand}`,
+          ].join('\n'),
+          meta: {
+            approvalId: pending.approvalId,
+          },
+        };
+      }
+
+      return {
+        ok: true,
+        output: formatJson(result),
+      };
+    }
+
     case 'approvals': {
       const entries = approvals.list();
       return {
@@ -547,8 +599,21 @@ async function bootstrap() {
 
   let runtime = createRuntime(audit, approvals);
 
+  // ── SSE: live GitHub API log clients ──
+  const sseClients = new Set<import('express').Response>();
+  function wireModelLogs() {
+    runtime.models.on('apiLog', (entry: unknown) => {
+      const data = JSON.stringify(entry);
+      for (const client of sseClients) {
+        client.write(`data: ${data}\n\n`);
+      }
+    });
+  }
+  wireModelLogs();
+
   const rebuildRuntime = () => {
     runtime = createRuntime(audit, approvals);
+    wireModelLogs();
   };
 
   const app = express();
@@ -603,6 +668,7 @@ async function bootstrap() {
           installationId: runtime.config.githubAppInstallationId,
           selectedModel: runtime.config.githubModelsDefaultModel,
           modelAccess,
+          message: modelAccess.ok ? undefined : `Katalog OK (${modelAccess.modelCount} modeli) ale token nieprawidłowy. ${modelAccess.tokenError ?? ''}`,
         });
       }
 
@@ -613,6 +679,7 @@ async function bootstrap() {
         oauthTokenConfigured: true,
         selectedModel: runtime.config.githubModelsDefaultModel,
         modelAccess,
+        message: modelAccess.ok ? undefined : `Katalog OK (${modelAccess.modelCount} modeli) ale token nieprawidłowy: ${modelAccess.tokenError ?? 'nieznany błąd'}. Sprawdź token.`,
       });
     } catch (error) {
       response.status(500).json({
@@ -804,6 +871,13 @@ async function bootstrap() {
   app.put('/api/settings', (request, response) => {
     try {
       const body = request.body as Record<string, unknown>;
+
+      // Validate token format before saving
+      const token = typeof body.github_oauth_token === 'string' ? body.github_oauth_token.trim() : '';
+      if (token && !['github_pat_', 'gho_', 'ghu_', 'ghp_'].some(p => token.startsWith(p))) {
+        return response.status(400).json({ error: 'Nieprawidłowy format tokena. Token musi zaczynać się od: github_pat_, gho_, ghu_ lub ghp_' });
+      }
+
       const saved = saveOptionsJson(toSettingsPayload(body));
       rebuildRuntime();
       audit.add('tool_call', 'Updated add-on settings', {
@@ -844,6 +918,18 @@ async function bootstrap() {
 
   app.get('/api/audit', (_request, response) => {
     response.json({ entries: audit.list() });
+  });
+
+  // ── SSE: live GitHub API logs ──
+  app.get('/api/logs/stream', (_request, response) => {
+    response.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      Connection: 'keep-alive',
+    });
+    response.write('data: {"connected":true}\n\n');
+    sseClients.add(response);
+    _request.on('close', () => { sseClients.delete(response); });
   });
 
   app.get('/api/approvals', (_request, response) => {

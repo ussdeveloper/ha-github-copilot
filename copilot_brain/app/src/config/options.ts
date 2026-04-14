@@ -28,7 +28,7 @@ const appConfigSchema = z.object({
   githubAppPrivateKeyBase64: z.string().default(""),
   githubClientId: z.string().default(""),
   githubOauthToken: z.string().default(""),
-  githubModelsDefaultModel: z.string().default("openai/gpt-4.1"),
+  githubModelsDefaultModel: z.string().default("openai/gpt-4.1-mini"),
   mcpAuthToken: z.string().default("change-me"),
   systemPromptTemplate: z.string().default(
     "You are the Home Assistant Copilot Brain. Be passive by default and only perform changes when explicitly asked. Available entities: {{entities_summary}} Available addons: {{addons_summary}}",
@@ -143,7 +143,8 @@ export function resolveOptionsPath(): string {
     return "/data/options.json";
   }
 
-  return path.resolve(process.cwd(), "../.data/options.json");
+  const resolved = path.resolve(process.cwd(), "../.data/options.json");
+  return resolved;
 }
 
 export function loadOptionsJson(): PartialOptions {
@@ -153,7 +154,11 @@ export function loadOptionsJson(): PartialOptions {
   }
 
   try {
-    const raw = readFileSync(optionsPath, "utf8");
+    let raw = readFileSync(optionsPath, "utf8");
+    // Strip UTF-8 BOM if present
+    if (raw.charCodeAt(0) === 0xfeff) {
+      raw = raw.slice(1);
+    }
     return sanitizeOptions(JSON.parse(raw));
   } catch {
     return {};

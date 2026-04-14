@@ -1,4 +1,4 @@
-/* ═══  Copilot Brain 0.4.9 — frontend  ═══ */
+/* ═══  Copilot Brain 0.4.16 — frontend  ═══ */
 
 // ── API base (handles HA ingress proxy) ──
 const API_BASE = (() => {
@@ -38,7 +38,6 @@ const settingsModalBackdrop = $('settingsModalBackdrop');
 const closeSettingsModalBtn = $('closeSettingsModalButton');
 const openSettingsItem      = $('openSettingsMenuItem');
 const authorizeGithubItem   = $('authorizeGithubMenuItem');
-const githubOauthSection    = $('githubOauthSection');
 
 const commandsModal         = $('commandsModal');
 const commandsModalBackdrop = $('commandsModalBackdrop');
@@ -47,23 +46,32 @@ const openCommandsItem      = $('openCommandsMenuItem');
 const commandsList          = $('commandsList');
 const addCommandForm        = $('addCommandForm');
 
-const settingsForm          = $('settingsForm');
+const settingsForm          = null; // replaced by per-section buttons
 const githubModelInput      = $('githubModelInput');
 const refreshModelsButton   = $('refreshModelsButton');
-const approvalModeInput     = $('approvalModeInput');
-const mcpTokenInput         = $('mcpTokenInput');
-const entityAllowlistInput  = $('entityAllowlistInput');
-const serviceAllowlistInput = $('serviceAllowlistInput');
-const addonAllowlistInput   = $('addonAllowlistInput');
-const systemPromptInput     = $('systemPromptInput');
-const testGithubButton      = null; // removed
+const approvalModeInput     = null; // removed for now
+const mcpTokenInput         = null; // removed for now
+const entityAllowlistInput  = null; // removed for now
+const serviceAllowlistInput = null; // removed for now
+const addonAllowlistInput   = null; // removed for now
+const systemPromptInput     = null; // removed for now
+const testGithubButton      = $('testTokenButton');
+const saveTokenButton       = $('saveTokenButton');
+const saveModelsButton      = $('saveModelsButton');
+const modelsCheckboxList    = $('modelsCheckboxList');
+const authStatusBox         = $('authStatusBox');
 
-const githubClientIdInput     = null; // removed (Device Flow replaced by PAT)
+const githubClientIdInput     = null; // removed
 const githubOauthTokenInput   = $('githubOauthTokenInput');
 const startDeviceFlowBtn      = null; // removed
-const githubAppIdInput        = null; // removed (GitHub App config removed)
+const githubAppIdInput        = null; // removed
 const githubInstallationIdInput = null; // removed
 const githubPrivateKeyInput   = null; // removed
+
+// Settings nav section switching
+const settingsNav = $('settingsNav');
+const settingsPages = document.querySelectorAll('.settings-page');
+let selectedModels = []; // user-selected models for UI
 
 const configBox      = $('configBox');
 const githubStatusBox= $('githubStatusBox');
@@ -81,6 +89,7 @@ const workspace    = document.querySelector('.workspace');
 // ── State ──
 const TERMINAL_KEY = 'cb-terminal-v2';
 const COMMANDS_KEY = 'cb-commands-v1';
+const PRACTICAL_DEFAULT_MODEL = 'openai/gpt-4.1-mini';
 let settingsHydrated = false;
 let terminalHistory = [];
 let predefinedCommands = [];
@@ -90,6 +99,34 @@ let terminalHistoryCursor = -1;
 const toJson = (v) => JSON.stringify(v, null, 2);
 const listToText = (v) => (Array.isArray(v) ? v.join('\n') : '');
 const uniqueStrings = (values) => [...new Set((values || []).map((value) => String(value).trim()).filter(Boolean))];
+
+function getModelMeta(model) {
+  const value = String(model || '').toLowerCase();
+
+  if (/openai\/gpt-4\.1-mini|openai\/gpt-4\.1-nano|openai\/gpt-4o-mini/.test(value)) {
+    return { badge: 'polecany', badgeClass: 'recommended', rank: 100 };
+  }
+
+  if (/openai\/(gpt-5-chat|gpt-5-mini|gpt-5-nano|o1-mini|o3-mini|o4-mini)/.test(value)) {
+    return { badge: 'niski limit', badgeClass: 'warning', rank: 20 };
+  }
+
+  if (/openai\/(gpt-5|o1|o3)(?:$|[^a-z0-9-])/.test(value)) {
+    return { badge: 'bardzo niski limit', badgeClass: 'limited', rank: 10 };
+  }
+
+  return { badge: '', badgeClass: '', rank: 50 };
+}
+
+function sortModelsForUi(models, preferredModel) {
+  const preferred = String(preferredModel || '').trim();
+  return uniqueStrings(models).sort((a, b) => {
+    if (a === preferred) return -1;
+    if (b === preferred) return 1;
+    const metaDiff = getModelMeta(b).rank - getModelMeta(a).rank;
+    return metaDiff || a.localeCompare(b);
+  });
+}
 
 function formatErrorMessage(error, fallback = 'Wystąpił nieznany błąd.') {
   const message = error instanceof Error ? error.message : String(error ?? fallback);
@@ -129,17 +166,18 @@ function navigateTerminalHistory(direction) {
 }
 
 function renderModelOptions(models, preferredModel) {
-  const options = uniqueStrings([preferredModel, ...(models || [])]);
+  const options = sortModelsForUi([preferredModel, ...(models || [])], preferredModel);
   if (!options.length) {
-    options.push('openai/gpt-4.1');
+    options.push(PRACTICAL_DEFAULT_MODEL);
   }
 
-  const currentValue = preferredModel || githubModelInput.value || options[0];
+  const currentValue = preferredModel || githubModelInput.value || PRACTICAL_DEFAULT_MODEL || options[0];
   githubModelInput.innerHTML = '';
   for (const model of options) {
     const option = document.createElement('option');
     option.value = model;
-    option.textContent = model;
+    const meta = getModelMeta(model);
+    option.textContent = meta.badge ? `${model} · ${meta.badge}` : model;
     githubModelInput.appendChild(option);
   }
   githubModelInput.value = options.includes(currentValue) ? currentValue : options[0];
@@ -188,12 +226,13 @@ settingsModalBackdrop.addEventListener('click', () => closeModal(settingsModal, 
 
 openSettingsItem.addEventListener('click', () => {
   openModal(settingsModal, settingsModalBackdrop);
-  githubModelInput.focus();
 });
 
 authorizeGithubItem.addEventListener('click', () => {
   openModal(settingsModal, settingsModalBackdrop);
-  githubOauthSection?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  // Switch to auth section
+  settingsNav.querySelectorAll('.settings-nav-item').forEach(b => b.classList.toggle('active', b.dataset.section === 'auth'));
+  settingsPages.forEach(p => p.classList.toggle('active', p.dataset.section === 'auth'));
   githubOauthTokenInput?.focus();
 });
 
@@ -289,15 +328,14 @@ chatForm.addEventListener('submit', async e => {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error ?? 'Chat error');
     appendMessage('assistant', data.reply);
-    await refresh();
   } catch (err) {
     appendMessage('assistant', `Błąd: ${formatErrorMessage(err, 'Chat error')}`);
   }
 });
 
-// Ctrl+Enter to send
+// Enter to send (Shift+Enter for newline)
 messageInput.addEventListener('keydown', e => {
-  if (e.key === 'Enter' && e.ctrlKey) { e.preventDefault(); chatForm.requestSubmit(); }
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); chatForm.requestSubmit(); }
 });
 
 // ══════════════════════════════════════════
@@ -349,7 +387,6 @@ terminalForm.addEventListener('submit', async e => {
     const data = await res.json();
     if (data.clear) { clearTerminal(data.output); }
     else { termLine(data.ok ? 'output' : 'error', data.output ?? 'No output.'); }
-    if (res.ok) await refresh();
   } catch (err) {
     termLine('error', formatErrorMessage(err, 'Terminal error'));
   } finally {
@@ -368,17 +405,53 @@ terminalInput.addEventListener('keydown', e => {
 });
 
 // ══════════════════════════════════════════
-//  OUTPUT LOG (secondary panel)
+//  OUTPUT LOG — live GitHub API logs via SSE
 // ══════════════════════════════════════════
-function appendOutput(text) {
+function appendOutput(text, cssClass) {
   const line = document.createElement('div');
-  line.className = 'terminal-line output';
+  line.className = 'terminal-line output' + (cssClass ? ' ' + cssClass : '');
   const pfx = document.createElement('span'); pfx.className = 'terminal-prefix'; pfx.textContent = '›';
-  const body = document.createElement('div'); body.className = 'terminal-body'; body.textContent = text;
+  const body = document.createElement('pre'); body.className = 'terminal-body'; body.textContent = text;
+  body.style.whiteSpace = 'pre-wrap'; body.style.wordBreak = 'break-all'; body.style.margin = '0';
   line.append(pfx, body);
   outputLog.appendChild(line);
+  // Keep max 500 entries
+  while (outputLog.children.length > 500) outputLog.removeChild(outputLog.firstChild);
   outputLog.scrollTop = outputLog.scrollHeight;
 }
+
+function formatApiLog(entry) {
+  const ts = entry.ts ? entry.ts.split('T')[1]?.replace('Z','') : '';
+  if (entry.direction === 'req') {
+    const hdrs = entry.headers ? '\n  Headers: ' + JSON.stringify(entry.headers) : '';
+    const body = entry.body ? '\n  Body: ' + (typeof entry.body === 'string' ? entry.body : JSON.stringify(entry.body, null, 2)) : '';
+    return `[${ts}] ▶ ${entry.method} ${entry.url}${hdrs}${body}`;
+  }
+  const status = entry.status ? ` ${entry.status}` : '';
+  const dur = entry.durationMs !== undefined ? ` (${entry.durationMs}ms)` : '';
+  const err = entry.error ? `\n  Error: ${entry.error}` : '';
+  const body = entry.body ? '\n  Body: ' + (typeof entry.body === 'string' ? entry.body.slice(0, 3000) : JSON.stringify(entry.body, null, 2)) : '';
+  return `[${ts}] ◀${status}${dur} ${entry.method} ${entry.url}${err}${body}`;
+}
+
+function connectLogSSE() {
+  const es = new EventSource(apiUrl('api/logs/stream'));
+  es.onmessage = (event) => {
+    try {
+      const entry = JSON.parse(event.data);
+      if (entry.connected) {
+        appendOutput('🔌 Log stream podłączony', 'log-connected');
+        return;
+      }
+      const isError = (entry.status && entry.status >= 400) || entry.error;
+      appendOutput(formatApiLog(entry), isError ? 'log-error' : (entry.direction === 'req' ? 'log-req' : 'log-res'));
+    } catch { /* ignore parse errors */ }
+  };
+  es.onerror = () => {
+    appendOutput('⚠ Log stream rozłączony — reconnecing…', 'log-error');
+  };
+}
+connectLogSSE();
 
 // ══════════════════════════════════════════
 //  PREDEFINED COMMANDS
@@ -428,7 +501,7 @@ async function executeCommand(cmd) {
     if (!res.ok) throw new Error(data.error ?? 'Command error');
     appendMessage('assistant', data.reply);
     appendOutput(`[${cmd.name}] ${data.reply.slice(0, 500)}`);
-    await refresh();
+
   } catch (err) {
     appendMessage('assistant', `Błąd komendy: ${err.message}`);
   }
@@ -454,90 +527,199 @@ function setSbStatus(el, ok, label) { if (el) el.textContent = label; }
 //  SETTINGS FORM
 // ══════════════════════════════════════════
 function hydrateSettings(s) {
-  githubModelInput.dataset.savedValue = s.effectiveConfig.githubModelsDefaultModel ?? 'openai/gpt-4.1';
-  approvalModeInput.value = s.effectiveConfig.approvalMode ?? 'explicit';
-  entityAllowlistInput.value = listToText(s.effectiveConfig.entityAllowlist);
-  serviceAllowlistInput.value = listToText(s.effectiveConfig.serviceAllowlist);
-  addonAllowlistInput.value = listToText(s.effectiveConfig.addonAllowlist);
-  systemPromptInput.value = s.effectiveConfig.systemPromptTemplate ?? '';
+  githubModelInput.dataset.savedValue = s.effectiveConfig.githubModelsDefaultModel ?? PRACTICAL_DEFAULT_MODEL;
   settingsHydrated = true;
 }
 
-function renderApprovals(entries) {
-  approvalCount.textContent = String(entries.length);
-  if (!entries.length) { approvalsBox.textContent = 'Brak oczekujących.'; return; }
-  approvalsBox.innerHTML = '';
-  for (const e of entries) {
-    const w = document.createElement('article'); w.className = 'approval-item';
-    w.innerHTML = `<h3>${esc(e.summary)}</h3>
-      <div class="approval-meta">${esc(e.id)} · ${e.status} · ${new Date(e.createdAt).toLocaleString()}</div>
-      <pre>${esc(toJson(e.payload))}</pre>`;
-    if (e.status === 'pending') {
-      const acts = document.createElement('div'); acts.className = 'approval-actions';
-      const ab = document.createElement('button'); ab.textContent = 'Approve';
-      ab.addEventListener('click', async () => {
-        await fetch(apiUrl(`api/approvals/${e.id}/approve`), { method: 'POST' });
-        termLine('system', `Approved ${e.id}`); await refresh();
-      });
-      const rb = document.createElement('button'); rb.textContent = 'Reject'; rb.className = 'reject';
-      rb.addEventListener('click', async () => {
-        await fetch(apiUrl(`api/approvals/${e.id}/reject`), { method: 'POST' });
-        termLine('system', `Rejected ${e.id}`); await refresh();
-      });
-      acts.append(ab, rb); w.appendChild(acts);
-    }
-    approvalsBox.appendChild(w);
-  }
+function renderApprovals() {} // removed for now
+
+// ── Settings nav switching ──
+if (settingsNav) {
+  settingsNav.addEventListener('click', e => {
+    const btn = e.target.closest('.settings-nav-item');
+    if (!btn) return;
+    const section = btn.dataset.section;
+    settingsNav.querySelectorAll('.settings-nav-item').forEach(b => b.classList.toggle('active', b === btn));
+    settingsPages.forEach(p => p.classList.toggle('active', p.dataset.section === section));
+  });
 }
 
-settingsForm.addEventListener('submit', async e => {
-  e.preventDefault();
-  const payload = {
-    github_model: githubModelInput.value.trim(),
-    approval_mode: approvalModeInput.value,
-    mcp_auth_token: mcpTokenInput.value.trim(),
-    github_oauth_token: githubOauthTokenInput.value.trim(),
-    entity_allowlist: entityAllowlistInput.value,
-    service_allowlist: serviceAllowlistInput.value,
-    addon_allowlist: addonAllowlistInput.value,
-    system_prompt_template: systemPromptInput.value,
-  };
+// ── Test token ──
+testGithubButton.addEventListener('click', async () => {
+  const token = githubOauthTokenInput.value.trim();
+  authStatusBox.className = 'auth-status-box';
+  authStatusBox.textContent = 'Testowanie…';
+
+  if (!token) {
+    // Test with existing saved token
+    try {
+      const res = await loadJson(apiUrl('api/github/status'));
+      if (res.ok) {
+        authStatusBox.className = 'auth-status-box ok';
+        authStatusBox.textContent = `✓ Połączono. Modele: ${res.modelAccess?.modelCount ?? '?'}, authMode: ${res.authMode}`;
+      } else {
+        authStatusBox.className = 'auth-status-box fail';
+        authStatusBox.textContent = `✗ ${res.message || 'Token nie skonfigurowany.'}`;
+      }
+    } catch (err) {
+      authStatusBox.className = 'auth-status-box fail';
+      authStatusBox.textContent = `✗ ${formatErrorMessage(err, 'Test failed')}`;
+    }
+    return;
+  }
+
+  if (!isValidTokenFormat(token)) {
+    authStatusBox.className = 'auth-status-box fail';
+    authStatusBox.textContent = '✗ Nieprawidłowy format tokena. Token musi zaczynać się od: github_pat_, gho_, ghu_ lub ghp_';
+    return;
+  }
+
+  // Save temporarily then test
+  try {
+    await fetch(apiUrl('api/settings'), {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ github_oauth_token: token }),
+    });
+    const res = await loadJson(apiUrl('api/github/status'));
+    if (res.ok) {
+      authStatusBox.className = 'auth-status-box ok';
+      authStatusBox.textContent = `✓ Połączono! Modele: ${res.modelAccess?.modelCount ?? '?'}`;
+      githubOauthTokenInput.value = '';
+      termLine('system', 'Token saved & verified.');
+      await refresh({ forceSettings: true });
+      await loadAndRenderModels();
+    } else {
+      authStatusBox.className = 'auth-status-box fail';
+      authStatusBox.textContent = `✗ Token zapisany, ale test nieudany: ${res.message || 'unknown error'}`;
+    }
+  } catch (err) {
+    authStatusBox.className = 'auth-status-box fail';
+    authStatusBox.textContent = `✗ ${formatErrorMessage(err, 'Test failed')}`;
+  }
+});
+
+// ── Token format validation ──
+const VALID_TOKEN_PREFIXES = ['github_pat_', 'gho_', 'ghu_', 'ghp_'];
+function isValidTokenFormat(token) {
+  return VALID_TOKEN_PREFIXES.some(prefix => token.startsWith(prefix));
+}
+
+// ── Save token ──
+saveTokenButton.addEventListener('click', async () => {
+  const token = githubOauthTokenInput.value.trim();
+  if (!token) {
+    authStatusBox.className = 'auth-status-box fail';
+    authStatusBox.textContent = 'Wklej token przed zapisaniem.';
+    return;
+  }
+  if (!isValidTokenFormat(token)) {
+    authStatusBox.className = 'auth-status-box fail';
+    authStatusBox.textContent = '✗ Nieprawidłowy format tokena. Token musi zaczynać się od: github_pat_, gho_, ghu_ lub ghp_';
+    return;
+  }
+
   try {
     const res = await fetch(apiUrl('api/settings'), {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ github_oauth_token: token }),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error ?? 'Settings error');
-    appendMessage('assistant', 'Ustawienia zapisane.');
-    termLine('system', 'Runtime settings updated.');
-    mcpTokenInput.value = ''; githubPrivateKeyInput.value = ''; githubOauthTokenInput.value = '';
+    if (!res.ok) throw new Error(data.error ?? 'Save error');
+    authStatusBox.className = 'auth-status-box ok';
+    authStatusBox.textContent = '✓ Token zapisany.';
+    githubOauthTokenInput.value = '';
+    termLine('system', 'Token saved.');
     settingsHydrated = false;
     await refresh({ forceSettings: true });
-    // Auto-reload models after save (token may have changed)
-    try {
-      const models = await loadJson(apiUrl('api/models'));
-      renderModelOptions(models.models, githubModelInput.dataset.savedValue || models.selected);
-      if (modelsBox) modelsBox.textContent = toJson(models);
-      termLine('system', `Models refreshed: ${models.models?.length ?? 0}`);
-    } catch { /* ignore */ }
+    await loadAndRenderModels();
   } catch (err) {
-    appendMessage('assistant', `Błąd zapisu: ${formatErrorMessage(err, 'Settings error')}`);
+    authStatusBox.className = 'auth-status-box fail';
+    authStatusBox.textContent = `✗ ${formatErrorMessage(err, 'Save error')}`;
+  }
+});
+
+// ── Models: load and render with checkboxes ──
+async function loadAndRenderModels() {
+  try {
+    const data = await loadJson(apiUrl('api/models'));
+    const models = data.models || [];
+    const current = data.selected || PRACTICAL_DEFAULT_MODEL;
+
+    // Load saved selection from localStorage
+    try { selectedModels = JSON.parse(localStorage.getItem('copilot_selected_models') || '[]'); } catch { selectedModels = []; }
+    if (!selectedModels.length) selectedModels = [current];
+
+    renderModelCheckboxes(models, current);
+    renderModelOptions(models, current);
+    if (modelsBox) modelsBox.textContent = toJson(data);
+    termLine('system', `Models loaded: ${models.length}`);
+  } catch (err) {
+    modelsCheckboxList.innerHTML = `<p class="muted-text">Błąd ładowania: ${formatErrorMessage(err, 'error')}</p>`;
+  }
+}
+
+function renderModelCheckboxes(models, defaultModel) {
+  modelsCheckboxList.innerHTML = '';
+  if (!models.length) {
+    modelsCheckboxList.innerHTML = '<p class="muted-text">Brak modeli. Zapisz token i kliknij Odśwież.</p>';
+    return;
+  }
+  for (const model of sortModelsForUi(models, defaultModel)) {
+    const isChecked = selectedModels.includes(model);
+    const isDefault = model === defaultModel;
+    const meta = getModelMeta(model);
+    const item = document.createElement('label');
+    item.className = 'model-checkbox-item' + (isChecked ? ' selected' : '');
+    item.innerHTML = `
+      <input type="checkbox" value="${esc(model)}" ${isChecked ? 'checked' : ''} />
+      <span class="model-name">${esc(model)}</span>
+      ${meta.badge ? `<span class="model-tier-badge ${meta.badgeClass}">${meta.badge}</span>` : ''}
+      ${isDefault ? '<span class="model-default-badge">default</span>' : ''}
+    `;
+    const checkbox = item.querySelector('input');
+    checkbox.addEventListener('change', () => {
+      if (checkbox.checked) {
+        if (!selectedModels.includes(model)) selectedModels.push(model);
+      } else {
+        selectedModels = selectedModels.filter(m => m !== model);
+      }
+      item.classList.toggle('selected', checkbox.checked);
+    });
+    modelsCheckboxList.appendChild(item);
+  }
+}
+
+// ── Save model selection ──
+saveModelsButton.addEventListener('click', async () => {
+  if (!selectedModels.length) {
+    termLine('error', 'Wybierz przynajmniej jeden model.');
+    return;
+  }
+  localStorage.setItem('copilot_selected_models', JSON.stringify(selectedModels));
+
+  // Set the first selected as default model
+  const defaultModel = selectedModels[0];
+  try {
+    await fetch(apiUrl('api/settings'), {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ github_model: defaultModel }),
+    });
+    termLine('system', `Zapisano ${selectedModels.length} modeli. Domyślny: ${defaultModel}`);
+    const meta = getModelMeta(defaultModel);
+    if (meta.badgeClass === 'warning' || meta.badgeClass === 'limited') {
+      termLine('system', `Uwaga: ${defaultModel} ma niski limit w GitHub Models API. Do codziennej pracy lepszy będzie ${PRACTICAL_DEFAULT_MODEL}.`);
+    }
+    settingsHydrated = false;
+    await refresh({ forceSettings: true });
+  } catch (err) {
+    termLine('error', `Błąd zapisu modeli: ${formatErrorMessage(err, 'error')}`);
   }
 });
 
 refreshModelsButton.addEventListener('click', async () => {
-  try {
-    refreshModelsButton.disabled = true;
-    const models = await loadJson(apiUrl('api/models'));
-    renderModelOptions(models.models, githubModelInput.value || githubModelInput.dataset.savedValue || models.selected);
-    modelsBox.textContent = toJson(models);
-    termLine('system', `Models loaded: ${models.models?.length ?? 0}`);
-  } catch (err) {
-    termLine('error', `Models: ${formatErrorMessage(err, 'Models error')}`);
-  } finally {
-    refreshModelsButton.disabled = false;
-  }
+  refreshModelsButton.disabled = true;
+  await loadAndRenderModels();
+  refreshModelsButton.disabled = false;
 });
 
 // ══════════════════════════════════════════
@@ -555,10 +737,9 @@ async function tryLoad(url) {
 
 async function refresh(opts = {}) {
   const { forceSettings = false } = opts;
-  const [health, config, github, settings, context, models, audit, approvals] = await Promise.all([
+  const [health, config, github, settings, models] = await Promise.all([
     tryLoad(apiUrl('api/health')), tryLoad(apiUrl('api/config')), tryLoad(apiUrl('api/github/status')),
-    tryLoad(apiUrl('api/settings')), tryLoad(apiUrl('api/context')), tryLoad(apiUrl('api/models')),
-    tryLoad(apiUrl('api/audit')), tryLoad(apiUrl('api/approvals')),
+    tryLoad(apiUrl('api/settings')), tryLoad(apiUrl('api/models')),
   ]);
 
   // Health / version
@@ -573,42 +754,32 @@ async function refresh(opts = {}) {
 
   // HA status
   if (config.ok) {
-    configBox.textContent = toJson(config.data);
+    if (configBox) configBox.textContent = toJson(config.data);
     setSbStatus(haStatusLabel, config.data.haLive, config.data.haLive ? 'HA live' : 'HA mock');
   } else {
-    configBox.textContent = config.error;
+    if (configBox) configBox.textContent = config.error;
     setSbStatus(haStatusLabel, false, 'HA err');
   }
 
   // GitHub
   if (github.ok) {
-    githubStatusBox.textContent = toJson(github.data);
+    if (githubStatusBox) githubStatusBox.textContent = toJson(github.data);
     setSbStatus(githubStatusLabel, github.data.ok, github.data.ok ? 'connected' : github.data.configured ? 'failing' : 'not configured');
   } else {
-    githubStatusBox.textContent = github.error;
+    if (githubStatusBox) githubStatusBox.textContent = github.error;
     setSbStatus(githubStatusLabel, false, 'error');
   }
 
   // Settings
   if (settings.ok && (!settingsHydrated || forceSettings)) hydrateSettings(settings.data);
 
-  const preferredModel = githubModelInput.value || githubModelInput.dataset.savedValue || settings.data?.effectiveConfig?.githubModelsDefaultModel || 'openai/gpt-4.1';
+  const preferredModel = githubModelInput.value || githubModelInput.dataset.savedValue || settings.data?.effectiveConfig?.githubModelsDefaultModel || PRACTICAL_DEFAULT_MODEL;
   renderModelOptions(models.ok ? models.data.models : [preferredModel], preferredModel);
 
   // Model label
   if (settings.ok) modelLabel.textContent = settings.data.effectiveConfig.githubModelsDefaultModel ?? '—';
 
-  // Context
-  if (context.ok) {
-    const c = context.data;
-    contextBox.textContent = [c.entitiesSummary, '', c.addonsSummary].join('\n');
-  } else { contextBox.textContent = context.error; }
-
-  modelsBox.textContent = models.ok ? toJson(models.data) : models.error;
-  auditBox.textContent = audit.ok ? toJson(audit.data.entries) : audit.error;
-
-  if (approvals.ok) renderApprovals(approvals.data.entries);
-  else { approvalsBox.textContent = approvals.error; approvalCount.textContent = '!'; }
+  if (modelsBox) modelsBox.textContent = models.ok ? toJson(models.data) : models.error;
 
   // Statusbar color
   const allOk = health.ok && config.ok;
@@ -633,8 +804,8 @@ loadCommands();
 renderCommands();
 
 appendMessage('assistant',
-  'Witaj w Copilot Brain.\nChat u góry, terminal na dole. Przeciągnij pasek aby zmienić proporcje.\nFile → Settings / Predefined Commands.\nAutoryzuj GitHub przez OAuth w Settings.');
+  'Witaj w Copilot Brain.\nChat u góry, terminal na dole. Przeciągnij pasek aby zmienić proporcje.\nFile → Settings aby skonfigurować token i modele.\nAgent ma podstawowe toolsy: odczyt plików, listowanie katalogów, search/grep, edycję plików z approval i /shell <polecenie> (z approval).');
 
 focusTerminalInput();
 refresh({ forceSettings: true });
-setInterval(() => refresh(), 30000);
+setInterval(() => refresh(), 300000); // 5 min

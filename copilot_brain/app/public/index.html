@@ -60,11 +60,8 @@
           <div id='chatLog' class='chat-log'></div>
           <form id='chatForm' class='composer'>
             <div class='composer-row'>
-              <textarea id='messageInput' rows='2'
-                placeholder='Zapytaj Copilota o Home Assistant… (Ctrl+Enter)'></textarea>
-              <button type='submit' class='icon-btn' title='Wyślij (Ctrl+Enter)'>
-                <span class='mdi mdi-send'></span>
-              </button>
+              <textarea id='messageInput' rows='1'
+                placeholder='Zapytaj Copilota… albo /shell <polecenie> (Enter)'></textarea>
             </div>
           </form>
         </section>
@@ -140,67 +137,83 @@
           <span class='mdi mdi-close'></span>
         </button>
       </header>
-      <div class='modal-body'>
-        <div class='settings-section' id='githubOauthSection'>
-          <div class='settings-section-header'>
+      <div class='settings-layout'>
+        <!-- LEFT: section nav -->
+        <nav class='settings-nav' id='settingsNav'>
+          <button type='button' class='settings-nav-item active' data-section='auth'>
+            <span class='mdi mdi-github'></span> Authorization
+          </button>
+          <button type='button' class='settings-nav-item' data-section='models'>
+            <span class='mdi mdi-atom-variant'></span> Models
+          </button>
+        </nav>
+
+        <!-- RIGHT: section content -->
+        <div class='settings-content'>
+
+          <!-- ── Authorization section ── -->
+          <div class='settings-page active' id='settingsPageAuth' data-section='auth'>
             <h3><span class='mdi mdi-github'></span> Autoryzacja GitHub</h3>
-          </div>
-          <p class='muted-text' style='font-size:12px;margin-bottom:8px'>
-            Wklej <strong>Fine-grained Personal Access Token</strong> z
-            <a href='https://github.com/settings/personal-access-tokens/new' target='_blank' rel='noopener'
-              style='color:var(--accent-2)'>github.com/settings/tokens</a>.<br/>
-            Wymagane uprawnienia (Account permissions):
-            <strong>Copilot requests — write</strong>,
-            <strong>Models — read</strong>,
-            <strong>Plan — read</strong>.
-          </p>
-          <label class='full-width' style='margin-bottom:8px'>
-            <span>Personal Access Token (github_pat_…)</span>
-            <input id='githubOauthTokenInput' type='password' placeholder='github_pat_… (zostaw puste aby zachować)' />
-          </label>
-          <pre id='githubStatusBox'>Ładowanie…</pre>
-        </div>
-
-        <div class='settings-section'>
-
-        <form id='settingsForm' class='settings-form'>
-          <div class='form-grid'>
-            <label><span>Model GitHub</span><select id='githubModelInput'></select></label>
-            <label style='display:flex;align-items:flex-end'>
-              <button id='refreshModelsButton' type='button' class='secondary-button' style='width:100%'>
-                <span class='mdi mdi-refresh'></span> Load models
+            <p class='muted-text' style='font-size:12px;margin-bottom:12px'>
+              Wklej <strong>Fine-grained Personal Access Token</strong> z
+              <a href='https://github.com/settings/personal-access-tokens/new' target='_blank' rel='noopener'
+                style='color:var(--accent-2)'>github.com/settings/tokens</a>.<br/>
+              Wymagane uprawnienia (Account permissions):
+              <strong>Copilot requests — write</strong>,
+              <strong>Models — read</strong>,
+              <strong>Plan — read</strong>.
+            </p>
+            <label class='settings-field'>
+              <span>Personal Access Token (github_pat_…)</span>
+              <input id='githubOauthTokenInput' type='password' placeholder='github_pat_…' autocomplete='off' />
+            </label>
+            <div id='authStatusBox' class='auth-status-box'></div>
+            <div class='settings-actions'>
+              <button type='button' class='secondary-button' id='testTokenButton'>
+                <span class='mdi mdi-check-network-outline'></span> Test
               </button>
-            </label>
-            <label><span>Approval mode</span>
-              <select id='approvalModeInput'>
-                <option value='explicit'>explicit</option>
-                <option value='read-only'>read-only</option>
-              </select>
-            </label>
-            <label><span>MCP token</span><input id='mcpTokenInput' type='password' placeholder='Zostaw puste aby zachować' /></label>
-            <label><span>Entity allowlist</span><textarea id='entityAllowlistInput' rows='3' placeholder='Jedna encja na linię'></textarea></label>
-            <label><span>Service allowlist</span><textarea id='serviceAllowlistInput' rows='3' placeholder='Jedna usługa na linię'></textarea></label>
-            <label class='full-width'><span>Addon allowlist</span><textarea id='addonAllowlistInput' rows='2'></textarea></label>
-            <label class='full-width'><span>System prompt</span><textarea id='systemPromptInput' rows='4'></textarea></label>
+              <button type='button' class='primary-button' id='saveTokenButton'>
+                <span class='mdi mdi-content-save-outline'></span> Save
+              </button>
+            </div>
           </div>
-          <div class='form-actions'>
-            <button type='submit'><span class='mdi mdi-content-save-outline'></span> Zapisz</button>
-          </div>
-        </form>
 
-        <div class='settings-footer-grid'>
-          <article class='info-tile'><h3><span class='mdi mdi-cog-refresh-outline'></span> Config</h3><pre id='configBox'>—</pre></article>
-          <article class='info-tile'><h3><span class='mdi mdi-home-search-outline'></span> Context</h3><pre id='contextBox'>—</pre></article>
-          <article class='info-tile'><h3><span class='mdi mdi-source-branch'></span> Audit</h3><pre id='auditBox'>—</pre></article>
-          <article class='info-tile'>
-            <h3><span class='mdi mdi-check-decagram-outline'></span> Approvals <span class='chip' id='approvalCount'>0</span></h3>
-            <div id='approvalsBox' class='approval-list'>—</div>
-          </article>
-          <article class='info-tile'><h3><span class='mdi mdi-atom-variant'></span> Models</h3><pre id='modelsBox'>—</pre></article>
-        </div>
+          <!-- ── Models section ── -->
+          <div class='settings-page' id='settingsPageModels' data-section='models'>
+            <h3><span class='mdi mdi-atom-variant'></span> Dostępne modele</h3>
+            <p class='muted-text' style='font-size:12px;margin-bottom:12px'>
+              To są modele z <strong>GitHub Models API</strong>, a nie wewnętrzna lista modeli czatu Copilot. Plan Copilot wpływa na limity,
+              ale niektóre modele (zwłaszcza GPT-5 / o1 / o3) mają bardzo niski limit na minutę. Do normalnej pracy polecamy
+              <code>openai/gpt-4.1-mini</code>.
+            </p>
+            <div id='modelsCheckboxList' class='models-checkbox-list'>
+              <p class='muted-text'>Zapisz token w sekcji Authorization, aby załadować modele.</p>
+            </div>
+            <div class='settings-actions'>
+              <button type='button' class='secondary-button' id='refreshModelsButton'>
+                <span class='mdi mdi-refresh'></span> Odśwież
+              </button>
+              <button type='button' class='primary-button' id='saveModelsButton'>
+                <span class='mdi mdi-content-save-outline'></span> Zapisz wybór
+              </button>
+            </div>
+          </div>
+
         </div>
       </div>
     </section>
+
+    <!-- hidden data holders for backward compat -->
+    <div style='display:none'>
+      <select id='githubModelInput'></select>
+      <pre id='configBox'></pre>
+      <pre id='githubStatusBox'></pre>
+      <pre id='contextBox'></pre>
+      <pre id='modelsBox'></pre>
+      <pre id='auditBox'></pre>
+      <div id='approvalsBox'></div>
+      <span id='approvalCount'></span>
+    </div>
 
     <!-- ╔══ COMMANDS MODAL ══╗ -->
     <div class='modal-backdrop hidden' id='commandsModalBackdrop'></div>
