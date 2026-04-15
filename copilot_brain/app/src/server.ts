@@ -24,7 +24,7 @@ import { createMcpRouter } from './mcp/server.js';
 import { ChatOrchestrator } from './chat/orchestrator.js';
 import { summarizeAddons, summarizeStates } from './prompt/template.js';
 
-const APP_VERSION = '0.4.18';
+const APP_VERSION = '0.4.19';
 const APP_STAGE = 'experimental';
 
 const __filename = fileURLToPath(import.meta.url);

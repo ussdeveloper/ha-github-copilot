@@ -282,6 +282,53 @@ code{display:inline-flex;align-items:center;min-height:1.3rem;padding:0 .3rem;ba
 }
 .nav-badge.has-items{background:var(--accent);color:#fff}
 
+/* ── Code blocks in chat ── */
+.code-block{margin:8px 0;border:1px solid var(--line);border-radius:4px;overflow:hidden}
+.code-block-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:4px 10px;background:var(--bg-4);border-bottom:1px solid var(--line);
+}
+.code-block-lang{font-size:11px;color:var(--muted);font-family:var(--mono)}
+.code-block-actions{display:flex;gap:4px}
+.code-action-btn{
+  display:inline-flex;align-items:center;gap:4px;
+  border:1px solid var(--line);background:var(--bg-2);color:var(--text);
+  font-size:11px;padding:2px 8px;cursor:pointer;border-radius:3px;
+}
+.code-action-btn:hover{background:var(--bg-3);border-color:var(--accent)}
+.code-action-btn.preview-btn{color:var(--accent)}
+.code-action-btn.preview-btn:hover{background:var(--accent);color:#fff}
+.code-block pre{
+  margin:0;padding:10px 12px;background:var(--bg);font-size:12px;
+  overflow-x:auto;max-height:400px;
+}
+.code-block code{font-family:var(--mono);white-space:pre;color:var(--text)}
+
+/* ── Preview modal ── */
+.preview-modal{width:90vw;max-width:1200px;height:85vh;max-height:85vh;display:flex;flex-direction:column}
+.preview-body{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.preview-frame{flex:1;border:0;background:#fff;min-height:200px}
+.preview-console-panel{
+  border-top:1px solid var(--line);display:flex;flex-direction:column;
+  max-height:200px;min-height:100px;
+}
+.preview-console-header{
+  display:flex;align-items:center;gap:6px;
+  padding:4px 10px;background:var(--bg-4);border-bottom:1px solid var(--line);
+  font-size:12px;color:var(--muted);
+}
+.preview-console-header .tab-action{margin-left:auto}
+.preview-console-log{
+  flex:1;overflow:auto;padding:6px 10px;background:var(--bg);
+  font-family:var(--mono);font-size:11px;
+}
+.preview-console-line{display:flex;gap:6px;padding:1px 0}
+.preview-console-line.error{color:#ef4444}
+.preview-console-line.warn{color:#eab308}
+.preview-console-line.log{color:var(--text)}
+.preview-console-line.info{color:var(--accent-2)}
+.preview-console-prefix{width:12px;flex-shrink:0;text-align:center;opacity:.6}
+
 .panel-title{display:flex;align-items:center;gap:.5rem}
 .muted-text{color:var(--muted);font-size:12px;margin:0}
 .hidden{display:none!important}
