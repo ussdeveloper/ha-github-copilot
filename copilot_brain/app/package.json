@@ -1,6 +1,6 @@
 {
   "name": "copilot-brain-app",
-  "version": "0.4.21",
+  "version": "0.4.22",
   "private": true,
   "type": "module",
   "scripts": {
@@ -9,6 +9,8 @@
     "start": "node dist/server.js"
   },
   "dependencies": {
+    "@github/copilot": "^1.0.27",
+    "@github/copilot-sdk": "^0.2.2",
     "dotenv": "^16.5.0",
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.2",

@@ -3,16 +3,19 @@ import type { SupervisorClient } from "../ha/supervisorClient.js";
 import type { ChatMessage, ChatToolCall, GitHubModelsClient } from "../github/modelsClient.js";
 import type { AuditStore } from "../audit/store.js";
 import type { ToolDefinition } from "../tools/registry.js";
+import type { CopilotSdkClient } from "../github/copilotSdkClient.js";
 import { renderSystemPrompt, summarizeAddons, summarizeStates } from "../prompt/template.js";
 
 export interface ChatResult {
   reply: string;
-  mode: "local" | "github-models" | "tool" | "approval";
+  mode: "local" | "github-models" | "tool" | "approval" | "copilot-sdk";
 }
 
 export class ChatOrchestrator {
   private readonly toolIndex: Map<string, ToolDefinition>;
+  private readonly tools: ToolDefinition[];
   private static readonly MAX_AGENT_STEPS = 6;
+  private sdkClient: CopilotSdkClient | null = null;
 
   constructor(
     private readonly config: AppConfig,
@@ -21,7 +24,12 @@ export class ChatOrchestrator {
     private readonly audit: AuditStore,
     tools: ToolDefinition[],
   ) {
+    this.tools = tools;
     this.toolIndex = new Map(tools.map((tool) => [tool.name, tool]));
+  }
+
+  setSdkClient(client: CopilotSdkClient | null): void {
+    this.sdkClient = client;
   }
 
   private getAgentSystemPrompt(basePrompt: string): string {
@@ -103,6 +111,33 @@ export class ChatOrchestrator {
         },
       };
     }
+  }
+
+  private async runAgentLoopSdk(trimmed: string): Promise<ChatResult> {
+    if (!this.sdkClient) throw new Error("SDK client not configured");
+    const [states, addons] = await Promise.all([this.ha.getStates(), this.ha.getAddons()]);
+    const basePrompt = renderSystemPrompt(this.config.systemPromptTemplate, {
+      entitiesSummary: summarizeStates(states),
+      addonsSummary: summarizeAddons(addons),
+      userPrompt: trimmed,
+    });
+    const systemPrompt = this.getAgentSystemPrompt(basePrompt);
+
+    const result = await this.sdkClient.chat(
+      systemPrompt,
+      trimmed,
+      this.tools,
+      this.config.githubModelsDefaultModel,
+    );
+
+    this.audit.add("chat", `Handled user message (SDK): ${trimmed.slice(0, 120)}`, {
+      usedTools: result.usedTools,
+    });
+
+    return {
+      reply: result.reply,
+      mode: result.usedTools ? "copilot-sdk" : "copilot-sdk",
+    };
   }
 
   private async runAgentLoop(trimmed: string): Promise<ChatResult> {
@@ -266,6 +301,17 @@ export class ChatOrchestrator {
         { command: shellCommand },
         "Shell command executed.",
       );
+    }
+
+    // Try Copilot SDK first (supports fine-grained PATs natively)
+    if (this.sdkClient) {
+      try {
+        return await this.runAgentLoopSdk(trimmed);
+      } catch (sdkError) {
+        this.audit.add("error", "SDK chat failed, falling back to REST API", {
+          message: sdkError instanceof Error ? sdkError.message : String(sdkError),
+        });
+      }
     }
 
     return this.runAgentLoop(trimmed);

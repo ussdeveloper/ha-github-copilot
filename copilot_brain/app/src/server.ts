@@ -20,11 +20,12 @@ import { createShellTools } from './tools/shellTools.js';
 import { executePreparedShellCommand } from './tools/shellActions.js';
 import { createWorkspaceTools, executeWorkspaceMutation } from './tools/workspaceTools.js';
 import { createNodeRedTools } from './tools/nodeRedTools.js';
+import { CopilotSdkClient } from './github/copilotSdkClient.js';
 import { createMcpRouter } from './mcp/server.js';
 import { ChatOrchestrator } from './chat/orchestrator.js';
 import { summarizeAddons, summarizeStates } from './prompt/template.js';
 
-const APP_VERSION = '0.4.21';
+const APP_VERSION = '0.4.22';
 const APP_STAGE = 'experimental';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -91,6 +92,14 @@ function createRuntime(audit: AuditStore, approvals: ApprovalStore) {
   const chat = new ChatOrchestrator(config, ha, models, audit, tools);
   const mcpRouter = createMcpRouter({ authToken: config.mcpAuthToken, tools, ha, version: APP_VERSION });
 
+  // Wire up Copilot SDK client if token is available
+  let sdkClient: CopilotSdkClient | null = null;
+  const token = config.githubOauthToken;
+  if (token) {
+    sdkClient = new CopilotSdkClient(token);
+    chat.setSdkClient(sdkClient);
+  }
+
   return {
     config,
     auth,
@@ -99,6 +108,7 @@ function createRuntime(audit: AuditStore, approvals: ApprovalStore) {
     tools,
     chat,
     mcpRouter,
+    sdkClient,
   };
 }
 
@@ -612,6 +622,9 @@ async function bootstrap() {
   wireModelLogs();
 
   const rebuildRuntime = () => {
+    if (runtime.sdkClient) {
+      runtime.sdkClient.dispose().catch(() => {});
+    }
     runtime = createRuntime(audit, approvals);
     wireModelLogs();
   };
@@ -658,28 +671,40 @@ async function bootstrap() {
       }
 
       const modelAccess = await runtime.models.testAccess(runtime.config.githubModelsDefaultModel);
+
+      // Test Copilot SDK access (supports fine-grained PATs)
+      let sdkAccess: { ok: boolean; error?: string } = { ok: false, error: 'SDK client not configured' };
+      if (runtime.sdkClient) {
+        sdkAccess = await runtime.sdkClient.testAccess(runtime.config.githubModelsDefaultModel);
+      }
+
       if (authMode === 'github-app') {
         const metadata = await runtime.auth.getAppMetadata();
         return response.json({
-          ok: modelAccess.ok,
+          ok: modelAccess.ok || sdkAccess.ok,
           configured: true,
           authMode,
           app: metadata,
           installationId: runtime.config.githubAppInstallationId,
           selectedModel: runtime.config.githubModelsDefaultModel,
           modelAccess,
+          sdkAccess,
           message: modelAccess.ok ? undefined : `Katalog OK (${modelAccess.modelCount} modeli) ale token nieprawidłowy. ${modelAccess.tokenError ?? ''}`,
         });
       }
 
+      const anyOk = sdkAccess.ok || modelAccess.ok;
       response.json({
-        ok: modelAccess.ok,
+        ok: anyOk,
         configured: true,
         authMode,
         oauthTokenConfigured: true,
         selectedModel: runtime.config.githubModelsDefaultModel,
         modelAccess,
-        message: modelAccess.ok ? undefined : `Katalog OK (${modelAccess.modelCount} modeli) ale token nieprawidłowy: ${modelAccess.tokenError ?? 'nieznany błąd'}. Sprawdź token.`,
+        sdkAccess,
+        message: anyOk
+          ? (sdkAccess.ok ? 'Copilot SDK active' : 'GitHub Models fallback active')
+          : `Brak dostępu. SDK: ${sdkAccess.error ?? 'N/A'}. REST: ${modelAccess.tokenError ?? 'N/A'}. Sprawdź token.`,
       });
     } catch (error) {
       response.status(500).json({

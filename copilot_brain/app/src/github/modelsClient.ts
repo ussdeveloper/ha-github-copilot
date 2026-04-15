@@ -325,7 +325,7 @@ export class GitHubModelsClient extends EventEmitter {
           "Content-Type": "application/json",
           Accept: "application/json",
           "Copilot-Integration-Id": "copilot-brain-ha",
-          "Editor-Version": "CopilotBrain/0.4.21",
+          "Editor-Version": "CopilotBrain/0.4.22",
         }
       : {
           Authorization: `Bearer ${pat}`,
