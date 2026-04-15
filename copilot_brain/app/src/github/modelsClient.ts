@@ -88,11 +88,15 @@ function parseMessageContent(content: unknown): string {
 const MODEL_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 const COPILOT_TOKEN_TTL_MS = 25 * 60 * 1000; // 25 minutes (tokens last ~30 min)
 
+type ApiMode = "copilot" | "github-models";
+
 export class GitHubModelsClient extends EventEmitter {
   private cachedModels: string[] | null = null;
   private cacheExpiry = 0;
   private copilotToken: string | null = null;
   private copilotTokenExpiry = 0;
+  /** Which API backend to use — determined once per token. */
+  private apiMode: ApiMode | null = null;
 
   constructor(private readonly tokenProvider: () => Promise<string | null>) {
     super();
@@ -104,6 +108,7 @@ export class GitHubModelsClient extends EventEmitter {
     this.cacheExpiry = 0;
     this.copilotToken = null;
     this.copilotTokenExpiry = 0;
+    this.apiMode = null;
   }
 
   private log(entry: ApiLogEntry) {
@@ -120,9 +125,13 @@ export class GitHubModelsClient extends EventEmitter {
 
   /**
    * Exchange GitHub PAT for a short-lived Copilot API token.
-   * This is the same mechanism VS Code uses internally.
+   * Works with classic PATs (ghp_) with `copilot` scope.
+   * Fine-grained PATs (github_pat_) don't support this — they use GitHub Models fallback.
    */
   private async getCopilotToken(): Promise<string | null> {
+    // If we already know this token can't do Copilot, skip
+    if (this.apiMode === "github-models") return null;
+
     // Return cached token if still valid
     if (this.copilotToken && Date.now() < this.copilotTokenExpiry) {
       return this.copilotToken;
@@ -148,18 +157,23 @@ export class GitHubModelsClient extends EventEmitter {
       if (!response.ok) {
         const errText = await response.text();
         this.log({ ts: new Date().toISOString(), direction: "res", method: "GET", url, status: response.status, body: errText.slice(0, 500), durationMs });
+        // Mark as github-models fallback so we don't retry
+        this.apiMode = "github-models";
         return null;
       }
 
       const data = (await response.json()) as { token?: string; expires_at?: number };
       this.log({ ts: new Date().toISOString(), direction: "res", method: "GET", url, status: response.status, body: "token exchanged", durationMs });
 
-      if (!data.token) return null;
+      if (!data.token) {
+        this.apiMode = "github-models";
+        return null;
+      }
 
       this.copilotToken = data.token;
-      // Use server-provided expiry if available, else default
+      this.apiMode = "copilot";
       if (data.expires_at) {
-        this.copilotTokenExpiry = data.expires_at * 1000 - 60_000; // 1 min before expiry
+        this.copilotTokenExpiry = data.expires_at * 1000 - 60_000;
       } else {
         this.copilotTokenExpiry = Date.now() + COPILOT_TOKEN_TTL_MS;
       }
@@ -167,43 +181,53 @@ export class GitHubModelsClient extends EventEmitter {
       return this.copilotToken;
     } catch (err) {
       this.log({ ts: new Date().toISOString(), direction: "res", method: "GET", url, error: err instanceof Error ? err.message : "unknown" });
+      this.apiMode = "github-models";
       return null;
     }
   }
 
-  async testAccess(defaultModel: string): Promise<{ ok: boolean; modelCount: number; sampleModels: string[]; tokenOk?: boolean; tokenError?: string }> {
-    // Test PAT → Copilot token exchange
-    const copilotToken = await this.getCopilotToken();
-    if (!copilotToken) {
-      const pat = await this.tokenProvider();
-      return {
-        ok: false,
-        modelCount: 0,
-        sampleModels: [],
-        tokenOk: false,
-        tokenError: pat ? "Could not exchange PAT for Copilot token. Check Copilot subscription and PAT permissions." : "No token configured",
-      };
+  /** Detect which API mode this token supports (cached). */
+  private async resolveApiMode(): Promise<ApiMode> {
+    if (this.apiMode) return this.apiMode;
+    await this.getCopilotToken();
+    return this.apiMode ?? "github-models";
+  }
+
+  async testAccess(defaultModel: string): Promise<{ ok: boolean; modelCount: number; sampleModels: string[]; tokenOk?: boolean; tokenError?: string; apiMode?: string }> {
+    const pat = await this.tokenProvider();
+    if (!pat) {
+      return { ok: false, modelCount: 0, sampleModels: [], tokenOk: false, tokenError: "No token configured" };
     }
 
+    const mode = await this.resolveApiMode();
     const models = await this.listModels(defaultModel);
+
     return {
       ok: models.length > 0,
       modelCount: models.length,
       sampleModels: models.slice(0, 10),
       tokenOk: true,
+      apiMode: mode,
     };
   }
 
   async listModels(defaultModel: string): Promise<string[]> {
-    // Return cached list if still valid
     if (this.cachedModels && Date.now() < this.cacheExpiry) {
       return this.cachedModels;
     }
 
-    const copilotToken = await this.getCopilotToken();
-    if (!copilotToken) {
-      return [defaultModel];
+    const mode = await this.resolveApiMode();
+
+    if (mode === "copilot") {
+      return this.listModelsCopilot(defaultModel);
     }
+    return this.listModelsGitHub(defaultModel);
+  }
+
+  /** List models via Copilot API (requires Copilot token). */
+  private async listModelsCopilot(defaultModel: string): Promise<string[]> {
+    const copilotToken = this.copilotToken;
+    if (!copilotToken) return [defaultModel];
 
     try {
       const url = "https://api.githubcopilot.com/models";
@@ -242,27 +266,72 @@ export class GitHubModelsClient extends EventEmitter {
     }
   }
 
-  async chatCompletion(request: ChatCompletionRequest): Promise<ChatCompletionResult> {
-    const copilotToken = await this.getCopilotToken();
-    if (!copilotToken) {
-      return {
-        content: "Copilot nie jest skonfigurowany. Otwórz Settings, wklej GitHub PAT z uprawnieniem Copilot i zapisz.",
-        toolCalls: [],
-        assistantMessage: {
-          role: "assistant",
-          content: "Copilot nie jest skonfigurowany. Otwórz Settings, wklej GitHub PAT z uprawnieniem Copilot i zapisz.",
-        },
+  /** List models via GitHub Models marketplace (fallback for fine-grained PATs). */
+  private async listModelsGitHub(defaultModel: string): Promise<string[]> {
+    const token = await this.tokenProvider();
+    if (!token) return [defaultModel];
+
+    try {
+      const url = "https://models.github.ai/catalog/models";
+      const reqHeaders: Record<string, string> = {
+        Accept: "application/vnd.github+json",
+        Authorization: `Bearer ${token}`,
       };
+      this.log({ ts: new Date().toISOString(), direction: "req", method: "GET", url, headers: this.redactAuth(reqHeaders) });
+      const t0 = Date.now();
+      const response = await fetch(url, { headers: reqHeaders });
+      const durationMs = Date.now() - t0;
+
+      if (!response.ok) {
+        const errText = await response.text();
+        this.log({ ts: new Date().toISOString(), direction: "res", method: "GET", url, status: response.status, body: errText.slice(0, 500), durationMs });
+        return this.cachedModels ?? [defaultModel];
+      }
+
+      const payload = (await response.json()) as Array<{ id?: string; task?: string }>;
+      // Filter to chat-capable models only
+      const chatModels = payload
+        .filter((entry) => entry.task === "chat-completion")
+        .map((entry) => entry.id)
+        .filter(Boolean) as string[];
+      this.log({ ts: new Date().toISOString(), direction: "res", method: "GET", url, status: response.status, body: `${chatModels.length} chat models (GitHub Models fallback)`, durationMs });
+      const result = chatModels.length ? chatModels : [defaultModel];
+      this.cachedModels = result;
+      this.cacheExpiry = Date.now() + MODEL_CACHE_TTL_MS;
+      return result;
+    } catch (err) {
+      this.log({ ts: new Date().toISOString(), direction: "res", method: "GET", url: "https://models.github.ai/catalog/models", error: err instanceof Error ? err.message : "unknown" });
+      return this.cachedModels ?? [defaultModel];
+    }
+  }
+
+  async chatCompletion(request: ChatCompletionRequest): Promise<ChatCompletionResult> {
+    const pat = await this.tokenProvider();
+    if (!pat) {
+      const msg = "Token nie jest skonfigurowany. Otwórz Settings i wklej GitHub PAT.";
+      return { content: msg, toolCalls: [], assistantMessage: { role: "assistant", content: msg } };
     }
 
-    const url = "https://api.githubcopilot.com/chat/completions";
-    const reqHeaders: Record<string, string> = {
-      Authorization: `Bearer ${copilotToken}`,
-      "Content-Type": "application/json",
-      Accept: "application/json",
-      "Copilot-Integration-Id": "copilot-brain-ha",
-      "Editor-Version": "CopilotBrain/0.4.20",
-    };
+    const mode = await this.resolveApiMode();
+    const copilotToken = mode === "copilot" ? this.copilotToken : null;
+
+    // Choose endpoint based on mode
+    const url = copilotToken
+      ? "https://api.githubcopilot.com/chat/completions"
+      : "https://models.github.ai/inference/chat/completions";
+    const reqHeaders: Record<string, string> = copilotToken
+      ? {
+          Authorization: `Bearer ${copilotToken}`,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          "Copilot-Integration-Id": "copilot-brain-ha",
+          "Editor-Version": "CopilotBrain/0.4.21",
+        }
+      : {
+          Authorization: `Bearer ${pat}`,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        };
     const reqBody = {
       model: request.model,
       messages: request.messages,
