@@ -198,4 +198,171 @@ export class SupervisorClient {
     const payload = (await r.json()) as { data?: Record<string, unknown> };
     return payload.data ?? {};
   }
+
+  // ── HA Core REST API — full access ──
+
+  /** List all registered services (domains + actions). */
+  async getServices(): Promise<Record<string, unknown>[]> {
+    if (!this.isLive()) {
+      return [{ domain: "light", services: { turn_on: {}, turn_off: {}, toggle: {} } }];
+    }
+    const r = await fetch(`${this.config.haCoreUrl}/services`, { headers: this.headers });
+    if (!r.ok) throw new Error(`Services list failed: ${r.status}`);
+    return (await r.json()) as Record<string, unknown>[];
+  }
+
+  /** Get HA core configuration (location, units, components, etc.). */
+  async getConfig(): Promise<Record<string, unknown>> {
+    if (!this.isLive()) {
+      return { location_name: "Mock Home", latitude: 52.23, longitude: 21.01, unit_system: { temperature: "°C" }, components: ["light", "switch", "automation"] };
+    }
+    const r = await fetch(`${this.config.haCoreUrl}/config`, { headers: this.headers });
+    if (!r.ok) throw new Error(`HA config failed: ${r.status}`);
+    return (await r.json()) as Record<string, unknown>;
+  }
+
+  /** List registered event types. */
+  async getEvents(): Promise<Record<string, unknown>[]> {
+    if (!this.isLive()) {
+      return [{ event: "state_changed", listener_count: 5 }, { event: "automation_triggered", listener_count: 2 }];
+    }
+    const r = await fetch(`${this.config.haCoreUrl}/events`, { headers: this.headers });
+    if (!r.ok) throw new Error(`Events list failed: ${r.status}`);
+    return (await r.json()) as Record<string, unknown>[];
+  }
+
+  /** Fire a custom event. */
+  async fireEvent(eventType: string, eventData?: Record<string, unknown>): Promise<unknown> {
+    if (!this.isLive()) {
+      return { mocked: true, event: eventType };
+    }
+    const r = await fetch(`${this.config.haCoreUrl}/events/${encodeURIComponent(eventType)}`, {
+      method: "POST",
+      headers: this.headers,
+      body: JSON.stringify(eventData ?? {}),
+    });
+    if (!r.ok) throw new Error(`Fire event ${eventType} failed: ${r.status}`);
+    return await r.json();
+  }
+
+  /** Get logbook entries. Optionally filter by entity_id and time range. */
+  async getLogbook(opts?: { entityId?: string; startTime?: string; endTime?: string }): Promise<unknown[]> {
+    if (!this.isLive()) {
+      return [{ name: "Living room light", message: "turned on", entity_id: "light.living_room", when: new Date().toISOString() }];
+    }
+    const params = new URLSearchParams();
+    if (opts?.entityId) params.set("entity", opts.entityId);
+    if (opts?.endTime) params.set("end_time", opts.endTime);
+    const timePart = opts?.startTime ? `/${opts.startTime}` : "";
+    const qs = params.toString() ? `?${params.toString()}` : "";
+    const r = await fetch(`${this.config.haCoreUrl}/logbook${timePart}${qs}`, { headers: this.headers });
+    if (!r.ok) throw new Error(`Logbook failed: ${r.status}`);
+    return (await r.json()) as unknown[];
+  }
+
+  /** Get entity history over a time period. */
+  async getHistory(entityId: string, opts?: { startTime?: string; endTime?: string; significantChangesOnly?: boolean }): Promise<unknown[]> {
+    if (!this.isLive()) {
+      return [[{ entity_id: entityId, state: "on", last_changed: new Date().toISOString() }]];
+    }
+    const params = new URLSearchParams();
+    params.set("filter_entity_id", entityId);
+    if (opts?.endTime) params.set("end_time", opts.endTime);
+    if (opts?.significantChangesOnly !== false) params.set("significant_changes_only", "1");
+    const timePart = opts?.startTime ? `/${opts.startTime}` : "";
+    const r = await fetch(`${this.config.haCoreUrl}/history/period${timePart}?${params.toString()}`, { headers: this.headers });
+    if (!r.ok) throw new Error(`History for ${entityId} failed: ${r.status}`);
+    return (await r.json()) as unknown[];
+  }
+
+  /** Render a Jinja2 template in HA context. */
+  async renderTemplate(template: string): Promise<string> {
+    if (!this.isLive()) {
+      return `[mock] Template result for: ${template}`;
+    }
+    const r = await fetch(`${this.config.haCoreUrl}/template`, {
+      method: "POST",
+      headers: this.headers,
+      body: JSON.stringify({ template }),
+    });
+    if (!r.ok) throw new Error(`Template render failed: ${r.status}`);
+    return await r.text();
+  }
+
+  /** Get error log from HA core. */
+  async getErrorLog(): Promise<string> {
+    if (!this.isLive()) {
+      return "[mock] No errors.";
+    }
+    const r = await fetch(`${this.config.haCoreUrl}/error_log`, { headers: this.headers });
+    if (!r.ok) throw new Error(`Error log failed: ${r.status}`);
+    return await r.text();
+  }
+
+  /** List all areas. */
+  async getAreas(): Promise<unknown[]> {
+    return this.wsLikeCommand("config/area_registry/list");
+  }
+
+  /** List all devices. */
+  async getDevices(): Promise<unknown[]> {
+    return this.wsLikeCommand("config/device_registry/list");
+  }
+
+  /** List all entity registry entries (with area, device, platform info). */
+  async getEntityRegistry(): Promise<unknown[]> {
+    return this.wsLikeCommand("config/entity_registry/list");
+  }
+
+  /** List all automations from registry. */
+  async getAutomations(): Promise<unknown[]> {
+    return this.wsLikeCommand("config/automation/config");
+  }
+
+  /**
+   * HA exposes some WebSocket-like commands via REST POST /api/...
+   * For registries we use the states + attributes approach as fallback.
+   */
+  private async wsLikeCommand(path: string): Promise<unknown[]> {
+    if (!this.isLive()) {
+      const mocks: Record<string, unknown[]> = {
+        "config/area_registry/list": [{ area_id: "living_room", name: "Salon" }, { area_id: "bedroom", name: "Sypialnia" }],
+        "config/device_registry/list": [{ id: "dev1", name: "Philips Hue Bridge", area_id: "living_room" }],
+        "config/entity_registry/list": [{ entity_id: "light.living_room", platform: "hue", area_id: "living_room", device_id: "dev1" }],
+        "config/automation/config": [{ id: "auto1", alias: "Włącz światło o zachodzie", trigger: [] }],
+      };
+      return mocks[path] ?? [];
+    }
+
+    // Try REST API endpoint first (works for entity/device/area registries in newer HA)
+    try {
+      const r = await fetch(`${this.config.haCoreUrl}/${path}`, {
+        method: "GET",
+        headers: this.headers,
+      });
+      if (r.ok) {
+        const data = await r.json();
+        return Array.isArray(data) ? data : (data as Record<string, unknown>)?.result as unknown[] ?? [];
+      }
+    } catch { /* fall through */ }
+
+    // Fallback: for automations, read from states
+    if (path.includes("automation")) {
+      const states = await this.getStates();
+      return states.filter(s => s.entity_id.startsWith("automation."));
+    }
+
+    // Fallback: for areas, derive from entity attributes
+    if (path.includes("area")) {
+      const states = await this.getStates();
+      const areaSet = new Set<string>();
+      for (const s of states) {
+        const area = (s.attributes as Record<string, unknown>)?.friendly_name;
+        if (area) areaSet.add(String(area));
+      }
+      return [...areaSet].map(name => ({ name }));
+    }
+
+    return [];
+  }
 }

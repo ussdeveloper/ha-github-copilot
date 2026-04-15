@@ -222,30 +222,6 @@
       </div>
     </section>
 
-    <!-- ╔══ PREVIEW MODAL ══╗ -->
-    <div class='modal-backdrop hidden' id='previewModalBackdrop'></div>
-    <section class='modal preview-modal hidden' id='previewModal' aria-hidden='true'>
-      <header class='modal-header'>
-        <div class='panel-title'><span class='mdi mdi-play-circle-outline'></span><h2>Preview</h2></div>
-        <button type='button' class='tab-action' id='closePreviewModalButton' title='Zamknij'>
-          <span class='mdi mdi-close'></span>
-        </button>
-      </header>
-      <div class='preview-body'>
-        <iframe id='previewFrame' class='preview-frame' sandbox='allow-scripts allow-modals'></iframe>
-        <div class='preview-console-panel'>
-          <div class='preview-console-header'>
-            <span class='mdi mdi-console'></span> Console
-            <span class='nav-badge' id='previewConsoleBadge'></span>
-            <button type='button' class='tab-action' id='clearPreviewConsoleButton' title='Wyczyść'>
-              <span class='mdi mdi-broom'></span>
-            </button>
-          </div>
-          <div id='previewConsoleLog' class='preview-console-log'></div>
-        </div>
-      </div>
-    </section>
-
     <!-- hidden data holders for backward compat -->
     <div style='display:none'>
       <select id='githubModelInput'></select>

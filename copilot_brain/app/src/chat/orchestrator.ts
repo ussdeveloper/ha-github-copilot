@@ -28,13 +28,18 @@ export class ChatOrchestrator {
     return [
       basePrompt,
       "",
-      "You can use tools to inspect the workspace, Home Assistant state, run shell commands, and modify workspace files.",
-      "Use tools when you need concrete facts from files, directories, search results, or shell output.",
-      "Use shell.run only when the user explicitly asks to execute a shell command.",
-      "Use workspace.write_file and workspace.replace_in_file only when the user explicitly asks to create or modify files.",
-      "When asking for a file, directory, search result, or command output, prefer tools over guessing.",
-      "If a tool returns pending approval, stop and explain that approval is required.",
-      "Keep final answers concise and grounded in tool output.",
+      "Tool usage strategy:",
+      "- You have full access to Home Assistant via ha.* tools: entities, services, history, logbook, areas, devices, automations, templates, logs, events.",
+      "- You have workspace tools: read/write/search files, grep, list directories.",
+      "- You have shell.run for system commands.",
+      "- Use ha.list_entities with domain filter to find specific entity types.",
+      "- Use ha.get_history and ha.get_logbook to analyze past behavior.",
+      "- Use ha.render_template to test Jinja2 expressions.",
+      "- Use ha.list_services to discover available services before calling them.",
+      "- Use ha.get_config to understand the HA installation setup.",
+      "- Use ha.list_areas and ha.list_devices to understand the physical layout.",
+      "- All mutating actions (ha.call_service, ha.fire_event, shell.run, workspace.write_file, workspace.replace_in_file) require approval — if a tool returns pending_approval, explain what was requested and tell the user to approve it in Settings → Approvals.",
+      "- Keep final answers concise. Ground everything in actual tool output.",
     ].join("\n");
   }
 

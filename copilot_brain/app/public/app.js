@@ -293,31 +293,6 @@ document.addEventListener('mouseup', () => {
 // ══════════════════════════════════════════
 //  CHAT
 // ══════════════════════════════════════════
-
-// Parse text into segments: plain text and fenced code blocks
-function parseMessageSegments(text) {
-  const segments = [];
-  const regex = /```(\w*)\n([\s\S]*?)```/g;
-  let last = 0;
-  let m;
-  while ((m = regex.exec(text)) !== null) {
-    if (m.index > last) segments.push({ type: 'text', content: text.slice(last, m.index) });
-    segments.push({ type: 'code', lang: m[1] || '', content: m[2] });
-    last = m.index + m[0].length;
-  }
-  if (last < text.length) segments.push({ type: 'text', content: text.slice(last) });
-  return segments;
-}
-
-// Check if code is previewable (HTML-like or combined HTML/CSS/JS)
-function isPreviewable(lang, code) {
-  const l = lang.toLowerCase();
-  if (['html', 'htm'].includes(l)) return true;
-  // Also check if content has HTML tags even without language tag
-  if (!l && /<\w+[^>]*>/.test(code) && (/<\/\w+>/.test(code))) return true;
-  return false;
-}
-
 function appendMessage(role, text) {
   const el = document.createElement('article');
   el.className = `message ${role}`;
@@ -332,162 +307,12 @@ function appendMessage(role, text) {
 
   const body = document.createElement('div');
   body.className = 'message-body';
-
-  const segments = parseMessageSegments(text);
-  for (const seg of segments) {
-    if (seg.type === 'text') {
-      const p = document.createElement('span');
-      p.textContent = seg.content;
-      body.appendChild(p);
-    } else {
-      // Code block
-      const wrapper = document.createElement('div');
-      wrapper.className = 'code-block';
-
-      // Header with lang label and buttons
-      const header = document.createElement('div');
-      header.className = 'code-block-header';
-      const langSpan = document.createElement('span');
-      langSpan.className = 'code-block-lang';
-      langSpan.textContent = seg.lang || 'code';
-      header.appendChild(langSpan);
-
-      const actions = document.createElement('div');
-      actions.className = 'code-block-actions';
-
-      // Copy button
-      const copyBtn = document.createElement('button');
-      copyBtn.className = 'code-action-btn';
-      copyBtn.innerHTML = '<span class="mdi mdi-content-copy"></span> Copy';
-      copyBtn.addEventListener('click', () => {
-        navigator.clipboard.writeText(seg.content).then(() => {
-          copyBtn.innerHTML = '<span class="mdi mdi-check"></span> Copied';
-          setTimeout(() => { copyBtn.innerHTML = '<span class="mdi mdi-content-copy"></span> Copy'; }, 1500);
-        });
-      });
-      actions.appendChild(copyBtn);
-
-      // Preview button (only for HTML-like code)
-      if (isPreviewable(seg.lang, seg.content)) {
-        const previewBtn = document.createElement('button');
-        previewBtn.className = 'code-action-btn preview-btn';
-        previewBtn.innerHTML = '<span class="mdi mdi-play-circle-outline"></span> Preview';
-        previewBtn.addEventListener('click', () => openPreview(seg.content));
-        actions.appendChild(previewBtn);
-      }
-
-      header.appendChild(actions);
-      wrapper.appendChild(header);
-
-      const pre = document.createElement('pre');
-      const code = document.createElement('code');
-      code.textContent = seg.content;
-      pre.appendChild(code);
-      wrapper.appendChild(pre);
-
-      body.appendChild(wrapper);
-    }
-  }
+  body.textContent = text;
 
   el.append(label, body);
   chatLog.appendChild(el);
   chatLog.scrollTop = chatLog.scrollHeight;
 }
-
-// ══════════════════════════════════════════
-//  CODE PREVIEW (mini-browser)
-// ══════════════════════════════════════════
-const previewModal = $('previewModal');
-const previewBackdrop = $('previewModalBackdrop');
-const previewFrame = $('previewFrame');
-const previewConsole = $('previewConsoleLog');
-const closePreviewBtn = $('closePreviewModalButton');
-const clearPreviewConsoleBtn = $('clearPreviewConsoleButton');
-const previewConsoleBadge = $('previewConsoleBadge');
-
-function openPreview(htmlCode) {
-  if (!previewModal || !previewFrame) return;
-
-  // Clear previous console
-  if (previewConsole) previewConsole.innerHTML = '';
-  if (previewConsoleBadge) { previewConsoleBadge.textContent = ''; previewConsoleBadge.classList.remove('has-items'); }
-
-  // Inject console capture script into the HTML
-  const consoleCapture = `<script>
-(function(){
-  var _parent = window.parent;
-  ['log','warn','error','info'].forEach(function(method){
-    var orig = console[method];
-    console[method] = function(){
-      var args = Array.prototype.slice.call(arguments);
-      var msg = args.map(function(a){
-        try { return typeof a === 'object' ? JSON.stringify(a,null,2) : String(a); }
-        catch(e) { return String(a); }
-      }).join(' ');
-      _parent.postMessage({type:'preview-console',method:method,message:msg},'*');
-      if(orig) orig.apply(console,arguments);
-    };
-  });
-  window.onerror = function(msg,src,line,col,err){
-    _parent.postMessage({type:'preview-console',method:'error',message:msg+' (line '+line+')'},'*');
-  };
-})();
-<\/script>`;
-
-  // Insert console capture right after <head> or at the beginning
-  let finalHtml = htmlCode;
-  if (/<head[^>]*>/i.test(finalHtml)) {
-    finalHtml = finalHtml.replace(/(<head[^>]*>)/i, '$1' + consoleCapture);
-  } else if (/<html[^>]*>/i.test(finalHtml)) {
-    finalHtml = finalHtml.replace(/(<html[^>]*>)/i, '$1<head>' + consoleCapture + '</head>');
-  } else {
-    finalHtml = consoleCapture + finalHtml;
-  }
-
-  // Show modal
-  previewBackdrop.classList.remove('hidden');
-  previewModal.classList.remove('hidden');
-  previewModal.setAttribute('aria-hidden', 'false');
-
-  // Write to iframe
-  previewFrame.srcdoc = finalHtml;
-}
-
-function closePreview() {
-  if (previewModal) { previewModal.classList.add('hidden'); previewModal.setAttribute('aria-hidden', 'true'); }
-  if (previewBackdrop) previewBackdrop.classList.add('hidden');
-  if (previewFrame) previewFrame.srcdoc = '';
-}
-
-if (closePreviewBtn) closePreviewBtn.addEventListener('click', closePreview);
-if (previewBackdrop) previewBackdrop.addEventListener('click', closePreview);
-if (clearPreviewConsoleBtn) clearPreviewConsoleBtn.addEventListener('click', () => {
-  if (previewConsole) previewConsole.innerHTML = '';
-  if (previewConsoleBadge) { previewConsoleBadge.textContent = ''; previewConsoleBadge.classList.remove('has-items'); }
-});
-
-// Listen for console messages from preview iframe
-let previewConsoleCount = 0;
-window.addEventListener('message', (e) => {
-  if (!e.data || e.data.type !== 'preview-console') return;
-  if (!previewConsole) return;
-  const line = document.createElement('div');
-  line.className = 'preview-console-line ' + (e.data.method || 'log');
-  const prefix = document.createElement('span');
-  prefix.className = 'preview-console-prefix';
-  prefix.textContent = e.data.method === 'error' ? '✕' : e.data.method === 'warn' ? '⚠' : '›';
-  const msg = document.createElement('span');
-  msg.textContent = e.data.message;
-  line.append(prefix, msg);
-  previewConsole.appendChild(line);
-  previewConsole.scrollTop = previewConsole.scrollHeight;
-  // Update badge
-  previewConsoleCount++;
-  if (previewConsoleBadge) {
-    previewConsoleBadge.textContent = String(previewConsoleCount);
-    previewConsoleBadge.classList.add('has-items');
-  }
-});
 
 chatForm.addEventListener('submit', async e => {
   e.preventDefault();
