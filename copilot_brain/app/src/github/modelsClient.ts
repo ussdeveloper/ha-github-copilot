@@ -86,10 +86,13 @@ function parseMessageContent(content: unknown): string {
 }
 
 const MODEL_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+const COPILOT_TOKEN_TTL_MS = 25 * 60 * 1000; // 25 minutes (tokens last ~30 min)
 
 export class GitHubModelsClient extends EventEmitter {
   private cachedModels: string[] | null = null;
   private cacheExpiry = 0;
+  private copilotToken: string | null = null;
+  private copilotTokenExpiry = 0;
 
   constructor(private readonly tokenProvider: () => Promise<string | null>) {
     super();
@@ -99,6 +102,8 @@ export class GitHubModelsClient extends EventEmitter {
   invalidateCache() {
     this.cachedModels = null;
     this.cacheExpiry = 0;
+    this.copilotToken = null;
+    this.copilotTokenExpiry = 0;
   }
 
   private log(entry: ApiLogEntry) {
@@ -113,28 +118,79 @@ export class GitHubModelsClient extends EventEmitter {
     return copy;
   }
 
-  async testAccess(defaultModel: string): Promise<{ ok: boolean; modelCount: number; sampleModels: string[]; tokenOk?: boolean; tokenError?: string }> {
-    const models = await this.listModels(defaultModel);
-    const catalogOk = models.length > 0;
-
-    // Validate token format (don't call inference — saves rate limit)
-    const token = await this.tokenProvider();
-    let tokenOk = false;
-    let tokenError: string | undefined;
-    if (!token) {
-      tokenError = "No token configured";
-    } else if (!["github_pat_", "gho_", "ghu_", "ghp_"].some(p => token.startsWith(p))) {
-      tokenError = "Invalid token format";
-    } else {
-      tokenOk = true;
+  /**
+   * Exchange GitHub PAT for a short-lived Copilot API token.
+   * This is the same mechanism VS Code uses internally.
+   */
+  private async getCopilotToken(): Promise<string | null> {
+    // Return cached token if still valid
+    if (this.copilotToken && Date.now() < this.copilotTokenExpiry) {
+      return this.copilotToken;
     }
 
+    const pat = await this.tokenProvider();
+    if (!pat) return null;
+
+    const url = "https://api.github.com/copilot_internal/v2/token";
+    const reqHeaders: Record<string, string> = {
+      Authorization: `Bearer ${pat}`,
+      Accept: "application/json",
+      "User-Agent": "CopilotBrain-HA-Addon",
+    };
+
+    this.log({ ts: new Date().toISOString(), direction: "req", method: "GET", url, headers: this.redactAuth(reqHeaders) });
+    const t0 = Date.now();
+
+    try {
+      const response = await fetch(url, { headers: reqHeaders });
+      const durationMs = Date.now() - t0;
+
+      if (!response.ok) {
+        const errText = await response.text();
+        this.log({ ts: new Date().toISOString(), direction: "res", method: "GET", url, status: response.status, body: errText.slice(0, 500), durationMs });
+        return null;
+      }
+
+      const data = (await response.json()) as { token?: string; expires_at?: number };
+      this.log({ ts: new Date().toISOString(), direction: "res", method: "GET", url, status: response.status, body: "token exchanged", durationMs });
+
+      if (!data.token) return null;
+
+      this.copilotToken = data.token;
+      // Use server-provided expiry if available, else default
+      if (data.expires_at) {
+        this.copilotTokenExpiry = data.expires_at * 1000 - 60_000; // 1 min before expiry
+      } else {
+        this.copilotTokenExpiry = Date.now() + COPILOT_TOKEN_TTL_MS;
+      }
+
+      return this.copilotToken;
+    } catch (err) {
+      this.log({ ts: new Date().toISOString(), direction: "res", method: "GET", url, error: err instanceof Error ? err.message : "unknown" });
+      return null;
+    }
+  }
+
+  async testAccess(defaultModel: string): Promise<{ ok: boolean; modelCount: number; sampleModels: string[]; tokenOk?: boolean; tokenError?: string }> {
+    // Test PAT → Copilot token exchange
+    const copilotToken = await this.getCopilotToken();
+    if (!copilotToken) {
+      const pat = await this.tokenProvider();
+      return {
+        ok: false,
+        modelCount: 0,
+        sampleModels: [],
+        tokenOk: false,
+        tokenError: pat ? "Could not exchange PAT for Copilot token. Check Copilot subscription and PAT permissions." : "No token configured",
+      };
+    }
+
+    const models = await this.listModels(defaultModel);
     return {
-      ok: catalogOk && tokenOk,
+      ok: models.length > 0,
       modelCount: models.length,
       sampleModels: models.slice(0, 10),
-      tokenOk,
-      tokenError,
+      tokenOk: true,
     };
   }
 
@@ -144,17 +200,17 @@ export class GitHubModelsClient extends EventEmitter {
       return this.cachedModels;
     }
 
-    const token = await this.tokenProvider();
-    if (!token) {
+    const copilotToken = await this.getCopilotToken();
+    if (!copilotToken) {
       return [defaultModel];
     }
 
     try {
-      const url = "https://models.github.ai/catalog/models";
+      const url = "https://api.githubcopilot.com/models";
       const reqHeaders: Record<string, string> = {
-        Accept: "application/vnd.github+json",
-        Authorization: `Bearer ${token}`,
-        "X-GitHub-Api-Version": "2026-03-10",
+        Authorization: `Bearer ${copilotToken}`,
+        Accept: "application/json",
+        "Copilot-Integration-Id": "copilot-brain-ha",
       };
       this.log({ ts: new Date().toISOString(), direction: "req", method: "GET", url, headers: this.redactAuth(reqHeaders) });
       const t0 = Date.now();
@@ -167,38 +223,45 @@ export class GitHubModelsClient extends EventEmitter {
         return this.cachedModels ?? [defaultModel];
       }
 
-      const payload = (await response.json()) as Array<{ id?: string }>;
-      const ids = payload.map((entry) => entry.id).filter(Boolean) as string[];
-      this.log({ ts: new Date().toISOString(), direction: "res", method: "GET", url, status: response.status, body: `${ids.length} models (cached 10 min)`, durationMs });
+      const payload = (await response.json()) as { data?: Array<{ id?: string; name?: string }>; models?: Array<{ id?: string; name?: string }> } | Array<{ id?: string; name?: string }>;
+      let entries: Array<{ id?: string; name?: string }>;
+      if (Array.isArray(payload)) {
+        entries = payload;
+      } else {
+        entries = payload.data ?? payload.models ?? [];
+      }
+      const ids = entries.map((entry) => entry.id ?? entry.name).filter(Boolean) as string[];
+      this.log({ ts: new Date().toISOString(), direction: "res", method: "GET", url, status: response.status, body: `${ids.length} Copilot models`, durationMs });
       const result = ids.length ? ids : [defaultModel];
       this.cachedModels = result;
       this.cacheExpiry = Date.now() + MODEL_CACHE_TTL_MS;
       return result;
     } catch (err) {
-      this.log({ ts: new Date().toISOString(), direction: "res", method: "GET", url: "https://models.github.ai/catalog/models", error: err instanceof Error ? err.message : "unknown" });
+      this.log({ ts: new Date().toISOString(), direction: "res", method: "GET", url: "https://api.githubcopilot.com/models", error: err instanceof Error ? err.message : "unknown" });
       return this.cachedModels ?? [defaultModel];
     }
   }
 
   async chatCompletion(request: ChatCompletionRequest): Promise<ChatCompletionResult> {
-    const token = await this.tokenProvider();
-    if (!token) {
+    const copilotToken = await this.getCopilotToken();
+    if (!copilotToken) {
       return {
-        content: "GitHub auth is not configured yet. Open Settings in Copilot Brain and authorize with GitHub OAuth or enter GitHub App credentials to enable live model responses.",
+        content: "Copilot nie jest skonfigurowany. Otwórz Settings, wklej GitHub PAT z uprawnieniem Copilot i zapisz.",
         toolCalls: [],
         assistantMessage: {
           role: "assistant",
-          content: "GitHub auth is not configured yet. Open Settings in Copilot Brain and authorize with GitHub OAuth or enter GitHub App credentials to enable live model responses.",
+          content: "Copilot nie jest skonfigurowany. Otwórz Settings, wklej GitHub PAT z uprawnieniem Copilot i zapisz.",
         },
       };
     }
 
-    const url = "https://models.github.ai/inference/chat/completions";
+    const url = "https://api.githubcopilot.com/chat/completions";
     const reqHeaders: Record<string, string> = {
-      Accept: "application/vnd.github+json",
-      Authorization: `Bearer ${token}`,
-      "X-GitHub-Api-Version": "2026-03-10",
+      Authorization: `Bearer ${copilotToken}`,
       "Content-Type": "application/json",
+      Accept: "application/json",
+      "Copilot-Integration-Id": "copilot-brain-ha",
+      "Editor-Version": "CopilotBrain/0.4.20",
     };
     const reqBody = {
       model: request.model,
@@ -236,9 +299,9 @@ export class GitHubModelsClient extends EventEmitter {
         throw new Error(`Brak dostępu (403) do modelu ${request.model}. Sprawdź uprawnienia tokena lub plan Copilot. ${text}`);
       }
       if (response.status === 429) {
-        throw new Error("Zbyt wiele zapytań (429). Odczekaj chwilę i spróbuj ponownie. GitHub Models ma limit zapytań na minutę.");
+        throw new Error("Zbyt wiele zapytań (429). Odczekaj chwilę i spróbuj ponownie.");
       }
-      throw new Error(`GitHub Models request failed: ${response.status} ${text}`);
+      throw new Error(`Copilot API request failed: ${response.status} ${text}`);
     }
 
     const payload = (await response.json()) as {

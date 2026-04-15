@@ -24,7 +24,7 @@ import { createMcpRouter } from './mcp/server.js';
 import { ChatOrchestrator } from './chat/orchestrator.js';
 import { summarizeAddons, summarizeStates } from './prompt/template.js';
 
-const APP_VERSION = '0.4.19';
+const APP_VERSION = '0.4.20';
 const APP_STAGE = 'experimental';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -316,7 +316,7 @@ async function executeTerminalCommand(
         ok: true,
         output: [
           'Entities summary',
-          summarizeStates(states, 30),
+          summarizeStates(states),
           '',
           'Add-ons summary',
           summarizeAddons(addons, 15),
@@ -906,10 +906,10 @@ async function bootstrap() {
     try {
       const [states, addons] = await Promise.all([runtime.ha.getStates(), runtime.ha.getAddons()]);
       response.json({
-        entitiesSummary: summarizeStates(states, 50),
+        entitiesSummary: summarizeStates(states),
         addonsSummary: summarizeAddons(addons, 20),
-        entities: states.slice(0, 100),
-        addons,
+        entityCount: states.length,
+        addonCount: addons.length,
       });
     } catch (error) {
       response.status(500).json({ error: error instanceof Error ? error.message : 'Unknown error' });

@@ -1,29 +1,22 @@
 import type { HaAddon, HaState } from "../ha/supervisorClient.js";
 
-export function summarizeStates(states: HaState[], limit = 200): string {
+export function summarizeStates(states: HaState[]): string {
   if (!states.length) {
     return "No entities available.";
   }
 
-  // Group by domain for better overview
-  const byDomain = new Map<string, HaState[]>();
+  // Compact domain summary — just counts, agent uses tools for details
+  const byDomain = new Map<string, number>();
   for (const s of states) {
     const domain = s.entity_id.split(".")[0];
-    if (!byDomain.has(domain)) byDomain.set(domain, []);
-    byDomain.get(domain)!.push(s);
+    byDomain.set(domain, (byDomain.get(domain) ?? 0) + 1);
   }
 
-  const lines: string[] = [];
-  let count = 0;
-  for (const [domain, entities] of [...byDomain.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
-    const entries = entities.slice(0, Math.max(1, Math.floor(limit / byDomain.size)));
-    const entryStrs = entries.map(s => `${s.entity_id}=${s.state}`);
-    lines.push(`[${domain}(${entities.length})] ${entryStrs.join(", ")}`);
-    count += entries.length;
-    if (count >= limit) break;
-  }
+  const domainParts = [...byDomain.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([domain, count]) => `${domain}(${count})`);
 
-  return lines.join("\n");
+  return `${states.length} entities: ${domainParts.join(", ")}`;
 }
 
 export function summarizeAddons(addons: HaAddon[], limit = 50): string {

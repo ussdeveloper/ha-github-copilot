@@ -28,7 +28,7 @@ const appConfigSchema = z.object({
   githubAppPrivateKeyBase64: z.string().default(""),
   githubClientId: z.string().default(""),
   githubOauthToken: z.string().default(""),
-  githubModelsDefaultModel: z.string().default("openai/gpt-4.1-mini"),
+  githubModelsDefaultModel: z.string().default("gpt-4.1-mini"),
   mcpAuthToken: z.string().default("change-me"),
   systemPromptTemplate: z.string().default(
     [
