@@ -217,6 +217,9 @@ code{display:inline-flex;align-items:center;min-height:1.3rem;padding:0 .3rem;ba
 .auth-status-box.ok{border-color:#22c55e;color:#22c55e}
 .auth-status-box.fail{border-color:#ef4444;color:#ef4444}
 
+input.token-saved::placeholder{color:#22c55e;opacity:0.8}
+input.token-saved{border-color:#22c55e40}
+
 .settings-actions{display:flex;gap:8px;justify-content:flex-end;padding-top:4px}
 .primary-button,.secondary-button{
   display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 14px;

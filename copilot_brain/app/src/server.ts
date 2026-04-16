@@ -25,7 +25,7 @@ import { createMcpRouter } from './mcp/server.js';
 import { ChatOrchestrator } from './chat/orchestrator.js';
 import { summarizeAddons, summarizeStates } from './prompt/template.js';
 
-const APP_VERSION = '0.4.22';
+const APP_VERSION = '0.4.23';
 const APP_STAGE = 'experimental';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -652,9 +652,11 @@ async function bootstrap() {
   });
 
   app.get('/api/settings', (_request, response) => {
+    const options = loadOptionsJson();
     response.json({
-      settings: redactOptions(loadOptionsJson()),
+      settings: redactOptions(options),
       effectiveConfig: redactConfig(runtime.config),
+      tokenConfigured: Boolean(options.github_oauth_token),
     });
   });
 
@@ -920,8 +922,33 @@ async function bootstrap() {
 
   app.get('/api/models', async (_request, response) => {
     try {
-      const modelsList = await runtime.models.listModels(runtime.config.githubModelsDefaultModel);
-      response.json({ models: modelsList, selected: runtime.config.githubModelsDefaultModel });
+      const defaultModel = runtime.config.githubModelsDefaultModel;
+      const restModels = await runtime.models.listModels(defaultModel);
+
+      // Merge SDK models (Copilot-native) with REST models (GitHub Models marketplace)
+      let sdkModels: string[] = [];
+      if (runtime.sdkClient) {
+        try {
+          sdkModels = await runtime.sdkClient.listModels();
+        } catch { /* SDK models are optional */ }
+      }
+
+      // Deduplicate: SDK models first (they're the primary chat path), then REST-only models
+      const seen = new Set<string>();
+      const merged: string[] = [];
+      for (const m of [...sdkModels, ...restModels]) {
+        if (!seen.has(m)) {
+          seen.add(m);
+          merged.push(m);
+        }
+      }
+
+      response.json({
+        models: merged,
+        selected: defaultModel,
+        sdkModelCount: sdkModels.length,
+        restModelCount: restModels.length,
+      });
     } catch (error) {
       response.status(500).json({ error: error instanceof Error ? error.message : 'Unknown error' });
     }

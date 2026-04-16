@@ -1,4 +1,4 @@
-/* ═══  Copilot Brain 0.4.22 — frontend  ═══ */
+/* ═══  Copilot Brain 0.4.23 — frontend  ═══ */
 
 // ── API base (handles HA ingress proxy) ──
 const API_BASE = (() => {
@@ -528,6 +528,14 @@ function setSbStatus(el, ok, label) { if (el) el.textContent = label; }
 // ══════════════════════════════════════════
 function hydrateSettings(s) {
   githubModelInput.dataset.savedValue = s.effectiveConfig.githubModelsDefaultModel ?? PRACTICAL_DEFAULT_MODEL;
+  // Show masked token indicator if token is saved and field is empty
+  if (s.tokenConfigured && githubOauthTokenInput && !githubOauthTokenInput.value) {
+    githubOauthTokenInput.placeholder = '••••••••••••  (token zapisany)';
+    githubOauthTokenInput.classList.add('token-saved');
+  } else if (!s.tokenConfigured && githubOauthTokenInput) {
+    githubOauthTokenInput.placeholder = 'github_pat_…';
+    githubOauthTokenInput.classList.remove('token-saved');
+  }
   settingsHydrated = true;
 }
 
@@ -697,6 +705,8 @@ testGithubButton.addEventListener('click', async () => {
       authStatusBox.className = 'auth-status-box ok';
       authStatusBox.textContent = `✓ Połączono! Modele: ${res.modelAccess?.modelCount ?? '?'}`;
       githubOauthTokenInput.value = '';
+      githubOauthTokenInput.placeholder = '••••••••••••  (token zapisany)';
+      githubOauthTokenInput.classList.add('token-saved');
       termLine('system', 'Token saved & verified.');
       await refresh({ forceSettings: true });
       await loadAndRenderModels();
@@ -740,6 +750,8 @@ saveTokenButton.addEventListener('click', async () => {
     authStatusBox.className = 'auth-status-box ok';
     authStatusBox.textContent = '✓ Token zapisany.';
     githubOauthTokenInput.value = '';
+    githubOauthTokenInput.placeholder = '••••••••••••  (token zapisany)';
+    githubOauthTokenInput.classList.add('token-saved');
     termLine('system', 'Token saved.');
     settingsHydrated = false;
     await refresh({ forceSettings: true });
